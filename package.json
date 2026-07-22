@@ -1,0 +1,11 @@
+{
+  "name": "regimecheck",
+  "version": "0.1.0",
+  "description": "Indian income tax calculator — old vs new regime, AY 2026-27",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "dev": "npx --yes serve ."
+  }
+}
