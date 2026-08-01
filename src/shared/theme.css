@@ -1,0 +1,188 @@
+/* Shared design layer — tokens plus the form/panel primitives every
+   planner is built from. Each page links this first, then its own stylesheet.
+   Anything that is not specific to one planner belongs here. */
+
+:root{
+  --paper:#EDF0F1;
+  --card:#FFFFFF;
+  --ink:#12203C;
+  --ink-soft:#55627A;
+  --ink-faint:#8B96A8;
+  --rule:#D3DADE;
+  --rule-soft:#E4E9EB;
+  --vermilion:#B32B32;
+  --ledger:#0E6049;
+  --ledger-wash:#E6F1ED;
+  --vermilion-wash:#FBEBEC;
+  --focus:#2F5DAF;
+  --r:3px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
+  font-size:15px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+.num{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+
+/* ---------- masthead ---------- */
+.masthead{
+  position:relative;
+  background:var(--ink);
+  color:#F4F6F7;
+  overflow:hidden;
+  border-bottom:3px solid var(--vermilion);
+}
+.guilloche{position:absolute;inset:0;opacity:.22;pointer-events:none}
+.masthead-in{
+  position:relative;
+  max-width:1180px;margin:0 auto;
+  padding:26px 24px 22px;
+  display:flex;flex-wrap:wrap;align-items:flex-end;gap:18px;justify-content:space-between;
+}
+.wordmark{font-family:"IBM Plex Serif",Georgia,serif;font-weight:600;font-size:26px;letter-spacing:-.015em;margin:0;line-height:1.1}
+.wordmark span{color:var(--vermilion)}
+.tagline{margin:5px 0 0;font-size:13px;color:#A9B4C4;max-width:46ch}
+.ay-stamp{
+  border:1px solid rgba(255,255,255,.35);
+  padding:7px 12px;border-radius:var(--r);
+  font-size:11px;letter-spacing:.09em;text-transform:uppercase;
+  color:#C9D3DF;text-align:right;line-height:1.5;
+}
+.ay-stamp b{display:block;color:#fff;font-size:13px;letter-spacing:.02em;text-transform:none}
+
+/* Back link out of a planner, sits above the wordmark */
+.crumb{
+  display:inline-block;margin:0 0 7px;
+  font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;
+  color:#94A2B6;text-decoration:none;
+}
+.crumb:hover{color:#fff}
+.crumb:focus-visible{outline:2px solid var(--focus);outline-offset:3px;border-radius:2px}
+
+/* ---------- selector strip ---------- */
+.formbar{background:var(--card);border-bottom:1px solid var(--rule)}
+.formbar-in{max-width:1180px;margin:0 auto;padding:0 24px;display:flex;gap:0;overflow-x:auto}
+.formtab{
+  appearance:none;background:none;border:none;cursor:pointer;
+  font-family:inherit;font-size:13px;color:var(--ink-soft);
+  padding:13px 17px 11px;border-bottom:3px solid transparent;
+  white-space:nowrap;text-align:left;
+}
+.formtab b{display:block;font-size:14px;color:var(--ink);font-weight:600}
+.formtab small{font-size:11.5px;color:var(--ink-faint)}
+.formtab:hover{background:#F7F9F9}
+.formtab[aria-selected="true"]{border-bottom-color:var(--vermilion);background:#F7F9F9}
+.formtab[aria-selected="true"] b{color:var(--vermilion)}
+.formtab:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
+
+/* ---------- layout ---------- */
+.wrap{max-width:1180px;margin:0 auto;padding:22px 24px 60px;display:grid;grid-template-columns:1fr 400px;gap:24px;align-items:start}
+@media(max-width:940px){.wrap{grid-template-columns:1fr;padding:18px 16px 44px}}
+
+.scope-note{
+  background:#FFF;border:1px solid var(--rule);border-left:3px solid var(--ink);
+  border-radius:var(--r);padding:12px 15px;font-size:13px;color:var(--ink-soft);margin-bottom:18px;
+}
+.scope-note b{color:var(--ink)}
+
+/* ---------- panels ---------- */
+.panel{background:var(--card);border:1px solid var(--rule);border-radius:var(--r);margin-bottom:16px}
+.panel > h2{
+  margin:0;padding:12px 16px;border-bottom:1px solid var(--rule-soft);
+  font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);font-weight:600;
+  display:flex;justify-content:space-between;align-items:baseline;gap:10px;
+}
+.panel > h2 em{font-style:normal;text-transform:none;letter-spacing:0;font-size:11.5px;color:var(--ink-faint)}
+.panel-body{padding:14px 16px}
+
+/* ---------- form controls ---------- */
+.row{display:grid;grid-template-columns:1fr 150px;gap:10px;align-items:center;padding:7px 0}
+.row + .row{border-top:1px solid #F0F3F4}
+.row label{font-size:13.5px;color:var(--ink);line-height:1.35}
+.row label small{display:block;color:var(--ink-faint);font-size:11.5px;margin-top:1px}
+@media(max-width:520px){.row{grid-template-columns:1fr 120px}}
+
+.inp{
+  width:100%;padding:7px 9px;border:1px solid var(--rule);border-radius:var(--r);
+  background:#FCFDFD;color:var(--ink);
+  font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;font-size:13.5px;text-align:right;
+}
+.inp:focus{outline:2px solid var(--focus);outline-offset:-1px;background:#fff}
+select.inp{text-align:left;font-family:"IBM Plex Sans",sans-serif}
+.inp:disabled{background:#F1F3F4;color:var(--ink-faint)}
+
+.seg{display:flex;border:1px solid var(--rule);border-radius:var(--r);overflow:hidden}
+.seg button{
+  flex:1;appearance:none;border:none;background:#FCFDFD;cursor:pointer;
+  font-family:inherit;font-size:12.5px;color:var(--ink-soft);padding:7px 4px;
+}
+.seg button + button{border-left:1px solid var(--rule)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:#fff}
+.seg button:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
+
+.subhead{
+  font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint);
+  font-weight:600;margin:16px 0 4px;padding-top:12px;border-top:1px solid var(--rule);
+}
+.subhead:first-child{margin-top:0;padding-top:0;border-top:none}
+
+.hint{font-size:12px;color:var(--ink-faint);margin:6px 0 0;line-height:1.45}
+.calc-out{font-size:12px;color:var(--ledger);margin:6px 0 0;font-family:"IBM Plex Mono",monospace}
+
+/* ---------- results ---------- */
+.results{position:sticky;top:16px}
+@media(max-width:940px){.results{position:static}}
+
+.verdict{
+  background:var(--ink);color:#fff;border-radius:var(--r);padding:18px 18px 16px;margin-bottom:16px;
+  border:1px solid var(--ink);
+}
+.verdict .eyebrow{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:#94A2B6;margin:0 0 7px}
+.verdict h3{margin:0;font-family:"IBM Plex Serif",serif;font-size:23px;font-weight:600;line-height:1.15}
+.verdict .saving{margin:9px 0 0;font-size:13.5px;color:#C6D2E0}
+.verdict .saving b{color:#7FD8B6;font-family:"IBM Plex Mono",monospace;font-size:16px;font-weight:500}
+
+/* ---------- ledger table ---------- */
+.ledger-tbl{width:100%;border-collapse:collapse;font-size:13px}
+.ledger-tbl th{text-align:left;font-weight:600;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);padding:8px 16px;border-bottom:1px solid var(--rule-soft)}
+.ledger-tbl th.n,.ledger-tbl td.n{text-align:right;font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums}
+.ledger-tbl td{padding:6px 16px;border-bottom:1px solid #F2F5F6;color:var(--ink-soft)}
+.ledger-tbl tr.major td{color:var(--ink);font-weight:600;background:#F8FAFA}
+.ledger-tbl tr.total td{color:var(--ink);font-weight:700;background:#F1F4F5;border-top:1.5px solid var(--rule);font-size:14px}
+.ledger-tbl td.sub{padding-left:28px;font-size:12.5px;color:var(--ink-faint)}
+.ledger-tbl tr.neg td.n{color:var(--vermilion)}
+
+/* ---------- footer ---------- */
+.foot{max-width:1180px;margin:0 auto;padding:0 24px 40px;font-size:12px;color:var(--ink-faint);line-height:1.6}
+.foot h4{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-soft);margin:0 0 6px}
+.foot a{color:var(--ink-soft)}
+.foot code{background:#E3E8EA;padding:1px 4px;border-radius:2px;font-size:11.5px}
+
+/* Sticky answer bar — mobile only. The headline stays in view while you type. */
+.stickybar{display:none}
+@media(max-width:940px){
+  .stickybar{
+    display:grid;grid-template-columns:1fr 1fr;
+    position:fixed;left:0;right:0;bottom:0;z-index:40;
+    background:var(--ink);color:#fff;
+    border-top:2px solid var(--vermilion);
+    padding:9px 14px calc(9px + env(safe-area-inset-bottom));
+    box-shadow:0 -3px 14px rgba(18,32,60,.20);
+  }
+  .stickybar div{min-width:0}
+  .stickybar div + div{text-align:right}
+  .stickybar span{display:block;font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:#96A3B7}
+  .stickybar b{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;font-size:17px;font-weight:500;letter-spacing:-.02em}
+  .stickybar .w b{color:#7FD8B6}
+  .stickybar .w span{color:#7FD8B6}
+  .wrap{padding-bottom:86px}
+}
+
+@media(prefers-reduced-motion:no-preference){
+  .verdict h3{transition:color .18s ease}
+}

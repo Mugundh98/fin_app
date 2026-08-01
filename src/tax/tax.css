@@ -1,0 +1,34 @@
+/* Tax planner — components only this page uses.
+   Tokens, masthead, form controls, panels, ledger table and footer all come
+   from ../shared/theme.css. */
+
+/* ---------- old vs new, side by side ---------- */
+.compare{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--rule-soft)}
+.col{padding:14px 15px}
+.col + .col{border-left:1px solid var(--rule-soft)}
+.col h4{margin:0 0 3px;font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint);font-weight:600}
+.col .big{font-family:"IBM Plex Mono",monospace;font-size:22px;font-weight:500;letter-spacing:-.02em;display:block;margin:2px 0 0}
+.col.win{background:var(--ledger-wash)}
+.col.win h4{color:var(--ledger)}
+.col.win .big{color:var(--ledger)}
+.col.lose .big{color:var(--ink-soft)}
+.col .delta{font-size:11.5px;color:var(--ink-faint);margin-top:3px;display:block}
+.tag{display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;background:var(--ledger);color:#fff;padding:2px 6px;border-radius:2px;margin-top:6px}
+
+/* ---------- break-even deductions ---------- */
+.breakeven{background:var(--vermilion-wash);border:1px solid #EFD3D5;border-radius:var(--r);padding:14px 16px;margin-bottom:16px}
+.breakeven .eyebrow{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--vermilion);font-weight:600;margin:0 0 5px}
+.breakeven .figure{font-family:"IBM Plex Mono",monospace;font-size:24px;font-weight:500;color:var(--ink);letter-spacing:-.02em}
+.breakeven p{margin:5px 0 0;font-size:12.5px;color:var(--ink-soft);line-height:1.5}
+
+/* ---------- slab-by-slab disclosure ---------- */
+details.slabs{border-top:1px solid var(--rule-soft)}
+details.slabs summary{padding:10px 16px;cursor:pointer;font-size:12px;color:var(--ink-soft);list-style:none;display:flex;justify-content:space-between}
+details.slabs summary::-webkit-details-marker{display:none}
+details.slabs summary::after{content:"+";color:var(--ink-faint)}
+details.slabs[open] summary::after{content:"–"}
+details.slabs summary:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
+
+@media(prefers-reduced-motion:no-preference){
+  .col .big{transition:color .18s ease}
+}

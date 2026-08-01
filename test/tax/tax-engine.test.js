@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { computeRegime, breakEven, hraExemption, slabTax, RATES } from "../src/tax-engine.js";
+import { computeRegime, breakEven, hraExemption, slabTax, RATES } from "../../src/tax/tax-engine.js";
 
 /* A taxpayer with nothing filled in. Spread over it to build a case. */
 const blank = {

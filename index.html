@@ -3,217 +3,22 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Regime Check — Income Tax Calculator AY 2026-27</title>
+<title>FinApp — Investment, Tax and Insurance Planners</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@500;600&display=swap" rel="stylesheet">
-<style>
-:root{
-  --paper:#EDF0F1;
-  --card:#FFFFFF;
-  --ink:#12203C;
-  --ink-soft:#55627A;
-  --ink-faint:#8B96A8;
-  --rule:#D3DADE;
-  --rule-soft:#E4E9EB;
-  --vermilion:#B32B32;
-  --ledger:#0E6049;
-  --ledger-wash:#E6F1ED;
-  --vermilion-wash:#FBEBEC;
-  --focus:#2F5DAF;
-  --r:3px;
-}
-*{box-sizing:border-box}
-html,body{margin:0;padding:0}
-body{
-  background:var(--paper);
-  color:var(--ink);
-  font-family:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
-  font-size:15px;
-  line-height:1.5;
-  -webkit-font-smoothing:antialiased;
-}
-.num{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
-
-/* ---------- masthead ---------- */
-.masthead{
-  position:relative;
-  background:var(--ink);
-  color:#F4F6F7;
-  overflow:hidden;
-  border-bottom:3px solid var(--vermilion);
-}
-.guilloche{position:absolute;inset:0;opacity:.22;pointer-events:none}
-.masthead-in{
-  position:relative;
-  max-width:1180px;margin:0 auto;
-  padding:26px 24px 22px;
-  display:flex;flex-wrap:wrap;align-items:flex-end;gap:18px;justify-content:space-between;
-}
-.wordmark{font-family:"IBM Plex Serif",Georgia,serif;font-weight:600;font-size:26px;letter-spacing:-.015em;margin:0;line-height:1.1}
-.wordmark span{color:var(--vermilion)}
-.tagline{margin:5px 0 0;font-size:13px;color:#A9B4C4;max-width:46ch}
-.ay-stamp{
-  border:1px solid rgba(255,255,255,.35);
-  padding:7px 12px;border-radius:var(--r);
-  font-size:11px;letter-spacing:.09em;text-transform:uppercase;
-  color:#C9D3DF;text-align:right;line-height:1.5;
-}
-.ay-stamp b{display:block;color:#fff;font-size:13px;letter-spacing:.02em;text-transform:none}
-
-/* ---------- form selector ---------- */
-.formbar{background:var(--card);border-bottom:1px solid var(--rule)}
-.formbar-in{max-width:1180px;margin:0 auto;padding:0 24px;display:flex;gap:0;overflow-x:auto}
-.formtab{
-  appearance:none;background:none;border:none;cursor:pointer;
-  font-family:inherit;font-size:13px;color:var(--ink-soft);
-  padding:13px 17px 11px;border-bottom:3px solid transparent;
-  white-space:nowrap;text-align:left;
-}
-.formtab b{display:block;font-size:14px;color:var(--ink);font-weight:600}
-.formtab small{font-size:11.5px;color:var(--ink-faint)}
-.formtab:hover{background:#F7F9F9}
-.formtab[aria-selected="true"]{border-bottom-color:var(--vermilion);background:#F7F9F9}
-.formtab[aria-selected="true"] b{color:var(--vermilion)}
-.formtab:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
-
-/* ---------- layout ---------- */
-.wrap{max-width:1180px;margin:0 auto;padding:22px 24px 60px;display:grid;grid-template-columns:1fr 400px;gap:24px;align-items:start}
-@media(max-width:940px){.wrap{grid-template-columns:1fr;padding:18px 16px 44px}}
-
-.scope-note{
-  background:#FFF;border:1px solid var(--rule);border-left:3px solid var(--ink);
-  border-radius:var(--r);padding:12px 15px;font-size:13px;color:var(--ink-soft);margin-bottom:18px;
-}
-.scope-note b{color:var(--ink)}
-
-/* ---------- panels ---------- */
-.panel{background:var(--card);border:1px solid var(--rule);border-radius:var(--r);margin-bottom:16px}
-.panel > h2{
-  margin:0;padding:12px 16px;border-bottom:1px solid var(--rule-soft);
-  font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);font-weight:600;
-  display:flex;justify-content:space-between;align-items:baseline;gap:10px;
-}
-.panel > h2 em{font-style:normal;text-transform:none;letter-spacing:0;font-size:11.5px;color:var(--ink-faint)}
-.panel-body{padding:14px 16px}
-
-.row{display:grid;grid-template-columns:1fr 150px;gap:10px;align-items:center;padding:7px 0}
-.row + .row{border-top:1px solid #F0F3F4}
-.row label{font-size:13.5px;color:var(--ink);line-height:1.35}
-.row label small{display:block;color:var(--ink-faint);font-size:11.5px;margin-top:1px}
-@media(max-width:520px){.row{grid-template-columns:1fr 120px}}
-
-.inp{
-  width:100%;padding:7px 9px;border:1px solid var(--rule);border-radius:var(--r);
-  background:#FCFDFD;color:var(--ink);
-  font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;font-size:13.5px;text-align:right;
-}
-.inp:focus{outline:2px solid var(--focus);outline-offset:-1px;background:#fff}
-select.inp{text-align:left;font-family:"IBM Plex Sans",sans-serif}
-.inp:disabled{background:#F1F3F4;color:var(--ink-faint)}
-
-.seg{display:flex;border:1px solid var(--rule);border-radius:var(--r);overflow:hidden}
-.seg button{
-  flex:1;appearance:none;border:none;background:#FCFDFD;cursor:pointer;
-  font-family:inherit;font-size:12.5px;color:var(--ink-soft);padding:7px 4px;
-}
-.seg button + button{border-left:1px solid var(--rule)}
-.seg button[aria-pressed="true"]{background:var(--ink);color:#fff}
-.seg button:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
-
-.subhead{
-  font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint);
-  font-weight:600;margin:16px 0 4px;padding-top:12px;border-top:1px solid var(--rule);
-}
-.subhead:first-child{margin-top:0;padding-top:0;border-top:none}
-
-.hint{font-size:12px;color:var(--ink-faint);margin:6px 0 0;line-height:1.45}
-.calc-out{font-size:12px;color:var(--ledger);margin:6px 0 0;font-family:"IBM Plex Mono",monospace}
-
-/* ---------- results ---------- */
-.results{position:sticky;top:16px}
-@media(max-width:940px){.results{position:static}}
-
-.verdict{
-  background:var(--ink);color:#fff;border-radius:var(--r);padding:18px 18px 16px;margin-bottom:16px;
-  border:1px solid var(--ink);
-}
-.verdict .eyebrow{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:#94A2B6;margin:0 0 7px}
-.verdict h3{margin:0;font-family:"IBM Plex Serif",serif;font-size:23px;font-weight:600;line-height:1.15}
-.verdict .saving{margin:9px 0 0;font-size:13.5px;color:#C6D2E0}
-.verdict .saving b{color:#7FD8B6;font-family:"IBM Plex Mono",monospace;font-size:16px;font-weight:500}
-
-.compare{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--rule-soft)}
-.col{padding:14px 15px}
-.col + .col{border-left:1px solid var(--rule-soft)}
-.col h4{margin:0 0 3px;font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint);font-weight:600}
-.col .big{font-family:"IBM Plex Mono",monospace;font-size:22px;font-weight:500;letter-spacing:-.02em;display:block;margin:2px 0 0}
-.col.win{background:var(--ledger-wash)}
-.col.win h4{color:var(--ledger)}
-.col.win .big{color:var(--ledger)}
-.col.lose .big{color:var(--ink-soft)}
-.col .delta{font-size:11.5px;color:var(--ink-faint);margin-top:3px;display:block}
-.tag{display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;background:var(--ledger);color:#fff;padding:2px 6px;border-radius:2px;margin-top:6px}
-
-.ledger-tbl{width:100%;border-collapse:collapse;font-size:13px}
-.ledger-tbl th{text-align:left;font-weight:600;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);padding:8px 16px;border-bottom:1px solid var(--rule-soft)}
-.ledger-tbl th.n,.ledger-tbl td.n{text-align:right;font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums}
-.ledger-tbl td{padding:6px 16px;border-bottom:1px solid #F2F5F6;color:var(--ink-soft)}
-.ledger-tbl tr.major td{color:var(--ink);font-weight:600;background:#F8FAFA}
-.ledger-tbl tr.total td{color:var(--ink);font-weight:700;background:#F1F4F5;border-top:1.5px solid var(--rule);font-size:14px}
-.ledger-tbl td.sub{padding-left:28px;font-size:12.5px;color:var(--ink-faint)}
-.ledger-tbl tr.neg td.n{color:var(--vermilion)}
-
-.breakeven{background:var(--vermilion-wash);border:1px solid #EFD3D5;border-radius:var(--r);padding:14px 16px;margin-bottom:16px}
-.breakeven .eyebrow{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--vermilion);font-weight:600;margin:0 0 5px}
-.breakeven .figure{font-family:"IBM Plex Mono",monospace;font-size:24px;font-weight:500;color:var(--ink);letter-spacing:-.02em}
-.breakeven p{margin:5px 0 0;font-size:12.5px;color:var(--ink-soft);line-height:1.5}
-
-details.slabs{border-top:1px solid var(--rule-soft)}
-details.slabs summary{padding:10px 16px;cursor:pointer;font-size:12px;color:var(--ink-soft);list-style:none;display:flex;justify-content:space-between}
-details.slabs summary::-webkit-details-marker{display:none}
-details.slabs summary::after{content:"+";color:var(--ink-faint)}
-details.slabs[open] summary::after{content:"–"}
-details.slabs summary:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
-
-.foot{max-width:1180px;margin:0 auto;padding:0 24px 40px;font-size:12px;color:var(--ink-faint);line-height:1.6}
-.foot h4{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-soft);margin:0 0 6px}
-.foot a{color:var(--ink-soft)}
-.foot code{background:#E3E8EA;padding:1px 4px;border-radius:2px;font-size:11.5px}
-
-/* Sticky answer bar — mobile only. The verdict stays in view while you type. */
-.stickybar{display:none}
-@media(max-width:940px){
-  .stickybar{
-    display:grid;grid-template-columns:1fr 1fr;
-    position:fixed;left:0;right:0;bottom:0;z-index:40;
-    background:var(--ink);color:#fff;
-    border-top:2px solid var(--vermilion);
-    padding:9px 14px calc(9px + env(safe-area-inset-bottom));
-    box-shadow:0 -3px 14px rgba(18,32,60,.20);
-  }
-  .stickybar div{min-width:0}
-  .stickybar div + div{text-align:right}
-  .stickybar span{display:block;font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:#96A3B7}
-  .stickybar b{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;font-size:17px;font-weight:500;letter-spacing:-.02em}
-  .stickybar .w b{color:#7FD8B6}
-  .stickybar .w span{color:#7FD8B6}
-  .wrap{padding-bottom:86px}
-}
-
-@media(prefers-reduced-motion:no-preference){
-  .col .big,.verdict h3{transition:color .18s ease}
-}
-</style>
+<link rel="stylesheet" href="./src/shared/theme.css">
+<link rel="stylesheet" href="./src/home/home.css">
 </head>
 <body>
 
+<!-- Suite wordmark. Rename here and in <title> if you settle on a different name. -->
 <header class="masthead">
   <svg class="guilloche" id="guilloche" viewBox="0 0 1200 200" preserveAspectRatio="xMidYMid slice" aria-hidden="true"></svg>
   <div class="masthead-in">
     <div>
-      <h1 class="wordmark">Regime<span>Check</span></h1>
-      <p class="tagline">Old regime or new — worked out line by line, with the deduction figure that would flip the answer.</p>
+      <h1 class="wordmark">Fin<span>App</span></h1>
+      <p class="tagline">Three planners, one set of numbers. Pick the question you are trying to answer.</p>
     </div>
     <div class="ay-stamp">
       Assessment Year<b>2026&#8209;27</b>FY 2025&#8209;26
@@ -221,79 +26,46 @@ details.slabs summary:focus-visible{outline:2px solid var(--focus);outline-offse
   </div>
 </header>
 
-<nav class="formbar" role="tablist" aria-label="Return form">
-  <div class="formbar-in" id="formbar"></div>
-</nav>
+<main class="wrap-home">
+  <h2 class="index-head">Planners</h2>
 
-<main class="wrap">
-  <div>
-    <div class="scope-note" id="scopeNote"></div>
-    <div id="inputs"></div>
+  <div class="planners">
+
+    <a class="planner is-live" href="./invest.html">
+      <p class="no">01</p>
+      <h2>Investment Planner</h2>
+      <p>Goal-based SIP planning. The horizon sets the asset mix and the return, the goal sets the inflation, and the answer comes as a range.</p>
+      <p class="status">Open</p>
+    </a>
+
+    <a class="planner is-live" href="./tax.html">
+      <p class="no">02</p>
+      <h2>Tax Planner</h2>
+      <p>Old regime against new for AY 2026&#8209;27, worked line by line, with the deduction figure that would flip the answer.</p>
+      <p class="status">Open</p>
+    </a>
+
+    <div class="planner is-soon">
+      <p class="no">03</p>
+      <h2>Insurance Planner</h2>
+      <p>Term cover and health cover sized against dependants, liabilities and existing policies.</p>
+      <p class="status">In preparation</p>
+    </div>
+
   </div>
-
-  <aside class="results" aria-live="polite">
-    <div class="verdict">
-      <p class="eyebrow">Verdict</p>
-      <h3 id="vTitle">Enter your income</h3>
-      <p class="saving" id="vSaving"></p>
-    </div>
-
-    <div class="panel">
-      <h2>Tax payable <em id="cmpNote"></em></h2>
-      <div class="compare">
-        <div class="col" id="colOld">
-          <h4>Old regime</h4>
-          <span class="big num" id="oldTotal">₹0</span>
-          <span class="delta" id="oldDelta"></span>
-        </div>
-        <div class="col" id="colNew">
-          <h4>New regime</h4>
-          <span class="big num" id="newTotal">₹0</span>
-          <span class="delta" id="newDelta"></span>
-        </div>
-      </div>
-      <details class="slabs">
-        <summary>Slab-by-slab breakdown</summary>
-        <table class="ledger-tbl"><tbody id="slabBody"></tbody></table>
-      </details>
-    </div>
-
-    <div class="breakeven" id="breakevenBox">
-      <p class="eyebrow">Break-even deductions</p>
-      <div class="figure num" id="beFigure">—</div>
-      <p id="beText"></p>
-    </div>
-
-    <div class="panel">
-      <h2>Computation <em>Old regime</em></h2>
-      <table class="ledger-tbl"><tbody id="oldSheet"></tbody></table>
-    </div>
-
-    <div class="panel">
-      <h2>Computation <em>New regime</em></h2>
-      <table class="ledger-tbl"><tbody id="newSheet"></tbody></table>
-    </div>
-  </aside>
 </main>
 
-<div class="stickybar" id="stickybar" aria-hidden="true">
-  <div id="sbOld"><span>Old regime</span><b class="num" id="sbOldVal">₹0</b></div>
-  <div id="sbNew"><span>New regime</span><b class="num" id="sbNewVal">₹0</b></div>
-</div>
-
 <footer class="foot">
-  <h4>Before you trust these numbers</h4>
+  <h4>About these planners</h4>
   <p>
-    Rates, slabs, surcharge, rebate and cess are set for <b>AY 2026&#8209;27 (FY 2025&#8209;26)</b> from the Income Tax Department's published tables.
-    Verify against <a href="https://www.incometax.gov.in/iec/foportal/help/individual/return-applicable-1" target="_blank" rel="noopener">incometax.gov.in</a> before relying on any figure.
-    All rates live in one object called <code>RATES</code> at the top of the script — that is the only place to edit when the Budget changes.
-  </p>
-  <p>
-    This is an estimate for planning, not a filed return, and not tax advice. It does not handle: relief u/s 89, clubbing, set-off and carry-forward of losses, foreign income and foreign tax credit,
-    AMT, capital gains indexation elections, or partial-year residency. Marginal relief on surcharge is computed on total income and may differ by rupees from the department's utility in edge cases.
+    Estimates for planning, not filed returns, and not financial advice. Each planner states its own
+    assumptions and what it does not handle — read that section before relying on any figure.
   </p>
 </footer>
 
-<script type="module" src="./src/tax/ui.js"></script>
+<script type="module">
+  import { drawGuilloche } from './src/shared/guilloche.js';
+  drawGuilloche(document.getElementById('guilloche'));
+</script>
 </body>
 </html>

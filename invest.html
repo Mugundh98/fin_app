@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Goal Plan — Investment Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./src/shared/theme.css">
+<link rel="stylesheet" href="./src/invest/invest.css">
+</head>
+<body>
+
+<header class="masthead">
+  <svg class="guilloche" id="guilloche" viewBox="0 0 1200 200" preserveAspectRatio="xMidYMid slice" aria-hidden="true"></svg>
+  <div class="masthead-in">
+    <div>
+      <a class="crumb" href="./index.html">&#8592; All planners</a>
+      <h1 class="wordmark">Goal<span>Plan</span></h1>
+      <p class="tagline">Pick the goal and the horizon — the asset mix and the return assumption follow from it.</p>
+    </div>
+    <div class="ay-stamp">
+      Money in<b>Today's terms</b>inflated for you
+    </div>
+  </div>
+</header>
+
+<nav class="formbar" role="tablist" aria-label="Goal">
+  <div class="formbar-in" id="formbar"></div>
+</nav>
+
+<main class="wrap">
+  <div>
+    <div class="scope-note" id="scopeNote"></div>
+    <div id="inputs"></div>
+  </div>
+
+  <aside class="results" aria-live="polite">
+    <div class="verdict">
+      <p class="eyebrow" id="vEyebrow">Monthly investment needed</p>
+      <h3 id="vTitle">Enter your goal</h3>
+      <p class="saving" id="vSaving"></p>
+    </div>
+
+    <div class="panel">
+      <h2>What the goal will cost <em id="costNote"></em></h2>
+      <table class="ledger-tbl"><tbody id="costSheet"></tbody></table>
+    </div>
+
+    <div class="panel" id="gaugePanel" hidden>
+      <h2>How far the budget gets you <em id="gaugeNote"></em></h2>
+      <div class="gauge">
+        <div class="bar"><div class="fill" id="gaugeFill"></div></div>
+        <div class="legend"><span id="gaugeLeft"></span><span id="gaugeRight"></span></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Range of outcomes <em>Returns are not guaranteed</em></h2>
+      <table class="ledger-tbl">
+        <thead><tr id="scnHead"></tr></thead>
+        <tbody id="scnBody"></tbody>
+      </table>
+    </div>
+
+    <div class="panel">
+      <h2>Where the corpus comes from <em>Expected return</em></h2>
+      <table class="ledger-tbl"><tbody id="splitSheet"></tbody></table>
+    </div>
+  </aside>
+</main>
+
+<div class="stickybar" id="stickybar" aria-hidden="true">
+  <div id="sbA"><span id="sbALabel">Needed</span><b class="num" id="sbAVal">₹0</b></div>
+  <div id="sbB" class="w"><span id="sbBLabel">Future cost</span><b class="num" id="sbBVal">₹0</b></div>
+</div>
+
+<footer class="foot">
+  <h4>Before you trust these numbers</h4>
+  <p>
+    Every figure here is arithmetic on the assumptions shown on the left, all of which you can change.
+    The return is derived from your horizon, not chosen: under 3 years is treated as debt, 3 to 5 as hybrid,
+    5 to 10 as equity-tilted, and 10 or more as equity. An emergency fund is treated as liquid and assumed not to grow.
+    The three scenarios exist because a single number would read as a promise. Returns are not guaranteed and
+    past behaviour of an asset class does not bind its future.
+  </p>
+  <p>
+    SIP instalments are modelled at the end of each month, and the annual step-up applies once every twelve months.
+    Annual returns are converted to a monthly rate that compounds back exactly, so 12% a year means 12% a year.
+    Tax on redemption, exit loads, expense ratios and transaction costs are <b>not</b> deducted — your realised
+    corpus will be lower.
+  </p>
+  <p>
+    This is an estimate for planning, not financial advice. It does not name, rank or recommend any fund,
+    scheme, insurer or product, and it holds no view on which you should buy. Asset-mix labels describe broad
+    asset classes only. Speak to a SEBI-registered investment adviser before acting on any of it.
+  </p>
+</footer>
+
+<script type="module" src="./src/invest/ui.js"></script>
+</body>
+</html>

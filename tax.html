@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Regime Check — Income Tax Calculator AY 2026-27</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./src/shared/theme.css">
+<link rel="stylesheet" href="./src/tax/tax.css">
+</head>
+<body>
+
+<header class="masthead">
+  <svg class="guilloche" id="guilloche" viewBox="0 0 1200 200" preserveAspectRatio="xMidYMid slice" aria-hidden="true"></svg>
+  <div class="masthead-in">
+    <div>
+      <a class="crumb" href="./index.html">&#8592; All planners</a>
+      <h1 class="wordmark">Regime<span>Check</span></h1>
+      <p class="tagline">Old regime or new — worked out line by line, with the deduction figure that would flip the answer.</p>
+    </div>
+    <div class="ay-stamp">
+      Assessment Year<b>2026&#8209;27</b>FY 2025&#8209;26
+    </div>
+  </div>
+</header>
+
+<nav class="formbar" role="tablist" aria-label="Return form">
+  <div class="formbar-in" id="formbar"></div>
+</nav>
+
+<main class="wrap">
+  <div>
+    <div class="scope-note" id="scopeNote"></div>
+    <div id="inputs"></div>
+  </div>
+
+  <aside class="results" aria-live="polite">
+    <div class="verdict">
+      <p class="eyebrow">Verdict</p>
+      <h3 id="vTitle">Enter your income</h3>
+      <p class="saving" id="vSaving"></p>
+    </div>
+
+    <div class="panel">
+      <h2>Tax payable <em id="cmpNote"></em></h2>
+      <div class="compare">
+        <div class="col" id="colOld">
+          <h4>Old regime</h4>
+          <span class="big num" id="oldTotal">₹0</span>
+          <span class="delta" id="oldDelta"></span>
+        </div>
+        <div class="col" id="colNew">
+          <h4>New regime</h4>
+          <span class="big num" id="newTotal">₹0</span>
+          <span class="delta" id="newDelta"></span>
+        </div>
+      </div>
+      <details class="slabs">
+        <summary>Slab-by-slab breakdown</summary>
+        <table class="ledger-tbl"><tbody id="slabBody"></tbody></table>
+      </details>
+    </div>
+
+    <div class="breakeven" id="breakevenBox">
+      <p class="eyebrow">Break-even deductions</p>
+      <div class="figure num" id="beFigure">—</div>
+      <p id="beText"></p>
+    </div>
+
+    <div class="panel">
+      <h2>Computation <em>Old regime</em></h2>
+      <table class="ledger-tbl"><tbody id="oldSheet"></tbody></table>
+    </div>
+
+    <div class="panel">
+      <h2>Computation <em>New regime</em></h2>
+      <table class="ledger-tbl"><tbody id="newSheet"></tbody></table>
+    </div>
+  </aside>
+</main>
+
+<div class="stickybar" id="stickybar" aria-hidden="true">
+  <div id="sbOld"><span>Old regime</span><b class="num" id="sbOldVal">₹0</b></div>
+  <div id="sbNew"><span>New regime</span><b class="num" id="sbNewVal">₹0</b></div>
+</div>
+
+<footer class="foot">
+  <h4>Before you trust these numbers</h4>
+  <p>
+    Rates, slabs, surcharge, rebate and cess are set for <b>AY 2026&#8209;27 (FY 2025&#8209;26)</b> from the Income Tax Department's published tables.
+    Verify against <a href="https://www.incometax.gov.in/iec/foportal/help/individual/return-applicable-1" target="_blank" rel="noopener">incometax.gov.in</a> before relying on any figure.
+    All rates live in one object called <code>RATES</code> at the top of the script — that is the only place to edit when the Budget changes.
+  </p>
+  <p>
+    This is an estimate for planning, not a filed return, and not tax advice. It does not handle: relief u/s 89, clubbing, set-off and carry-forward of losses, foreign income and foreign tax credit,
+    AMT, capital gains indexation elections, or partial-year residency. Marginal relief on surcharge is computed on total income and may differ by rupees from the department's utility in edge cases.
+  </p>
+</footer>
+
+<script type="module" src="./src/tax/ui.js"></script>
+</body>
+</html>

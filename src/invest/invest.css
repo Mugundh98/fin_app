@@ -1,0 +1,73 @@
+/* Investment planner — components only this page uses.
+   Tokens, masthead, form controls, panels, ledger table and footer all come
+   from ../shared/theme.css. */
+
+/* ---------- horizon -> mix -> return readout ---------- */
+.derived{
+  border:1px solid var(--rule);border-left:3px solid var(--ink);
+  border-radius:var(--r);background:#F8FAFA;
+  padding:13px 15px;margin-top:4px;
+}
+.derived .eyebrow{
+  font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-faint);font-weight:600;margin:0 0 6px;
+}
+.derived .mix{
+  font-family:"IBM Plex Serif",Georgia,serif;font-size:17px;font-weight:600;
+  color:var(--ink);margin:0;line-height:1.2;
+}
+.derived .mix .pill{
+  display:inline-block;vertical-align:2px;margin-left:8px;
+  font-family:"IBM Plex Sans",sans-serif;font-size:10px;font-weight:600;
+  letter-spacing:.08em;text-transform:uppercase;
+  background:var(--ink);color:#fff;padding:2px 7px;border-radius:2px;
+}
+.derived .detail{margin:5px 0 0;font-size:12.5px;color:var(--ink-soft)}
+.derived .rates{
+  display:flex;gap:0;margin-top:11px;border-top:1px solid var(--rule-soft);padding-top:10px;
+}
+.derived .rates div{flex:1;text-align:center}
+.derived .rates div + div{border-left:1px solid var(--rule-soft)}
+.derived .rates span{
+  display:block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--ink-faint);margin-bottom:2px;
+}
+.derived .rates b{
+  font-family:"IBM Plex Mono",monospace;font-size:15px;font-weight:500;color:var(--ink-soft);
+}
+.derived .rates .exp b{color:var(--ledger)}
+
+/* ---------- scenario range ---------- */
+.scn-head{
+  display:grid;grid-template-columns:1fr auto;gap:10px;align-items:baseline;
+  padding:11px 16px 0;
+}
+tr.scn-exp td{background:var(--ledger-wash);color:var(--ink);font-weight:600}
+tr.scn-exp td.n{color:var(--ledger)}
+td.rate{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-faint)}
+
+/* ---------- funded gauge ---------- */
+.gauge{padding:14px 16px 16px}
+.gauge .bar{
+  height:9px;border-radius:2px;background:#E6EAEC;overflow:hidden;border:1px solid var(--rule-soft);
+}
+.gauge .fill{height:100%;background:var(--ledger);width:0}
+.gauge .fill.short{background:var(--vermilion)}
+.gauge .legend{
+  display:flex;justify-content:space-between;gap:10px;margin-top:7px;
+  font-size:11.5px;color:var(--ink-faint);
+}
+.gauge .legend b{
+  font-family:"IBM Plex Mono",monospace;font-weight:500;color:var(--ink-soft);
+}
+
+/* ---------- headline figure inside the verdict ---------- */
+.verdict .figure{
+  font-family:"IBM Plex Mono",monospace;font-size:30px;font-weight:500;
+  letter-spacing:-.02em;color:#fff;display:block;margin:2px 0 0;
+}
+.verdict .figure small{font-size:14px;color:#A9B4C4;letter-spacing:0;margin-left:3px}
+
+@media(prefers-reduced-motion:no-preference){
+  .gauge .fill{transition:width .2s ease,background .2s ease}
+}
