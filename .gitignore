@@ -1,0 +1,12 @@
+# Per-machine Claude Code permissions. .claude/launch.json is shared on purpose.
+.claude/settings.local.json
+
+# Not used today — no build step, no dependencies — but here so a stray
+# npm install cannot land in a commit.
+node_modules/
+
+# Editor and OS noise
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
