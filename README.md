@@ -41,49 +41,56 @@ npm test         # runs the tax engine test suite
 `npm run dev` uses `npx serve`, which downloads on first use. In VS Code the
 **Live Server** extension does the same thing with one click on `index.html`.
 
-You need a server rather than opening the file directly, because `src/tax/ui.js`
-is an ES module and browsers block module imports over `file://`.
+You need a server rather than opening the file directly, because
+`public/src/tax/ui.js` is an ES module and browsers block module imports over
+`file://`.
 
 ---
 
 ## Layout
 
-One HTML file per planner at the root; everything it needs lives under a
-matching folder in `src/`.
+**Everything that gets published lives under `public/`, and nothing else does.**
+That boundary is load-bearing — see [Deploying](#deploying). One HTML file per
+planner, with everything it needs under a matching folder in `public/src/`.
 
 ```
-index.html                  home — the planner index
-tax.html                    tax planner markup
-invest.html                 investment planner markup
-src/
-  shared/
-    theme.css               tokens, masthead, form controls, panels, footer
-    guilloche.js            the masthead engraving
-  home/
-    home.css                planner index cards
-  tax/
-    tax-engine.js           all the tax logic — pure functions, no DOM
-    ui.js                   form building, state, rendering
-    tax.css                 old-vs-new comparison, break-even box
-  invest/
-    invest-engine.js        all the goal maths — pure functions, no DOM
-    ui.js                   form building, state, rendering
-    invest.css              horizon readout, funded gauge
-  portfolio/
-    portfolio-engine.js     classification, drift, rebalancing — pure, no DOM
-    xlsx.js                 .xlsx and .csv reader, no dependencies
-    ui.js                   form building, state, rendering
-    portfolio.css           import box, editable rows, allocation bars
-  insure/
-    insure-engine.js        bonus accrual and the IRR solver — pure, no DOM
-    ui.js                   form building, state, rendering
-    insure.css              maturity composition bar, year-by-year table
-test/
+public/                     <- the entire deployed site, and only that
+  index.html                home — the planner index
+  tax.html                  tax planner markup
+  invest.html               investment planner markup
+  portfolio.html            portfolio analyser markup
+  insure.html               insurance planner markup
+  src/
+    shared/
+      theme.css             tokens, masthead, form controls, panels, footer
+      guilloche.js          the masthead engraving
+    home/
+      home.css              planner index cards
+    tax/
+      tax-engine.js         all the tax logic — pure functions, no DOM
+      ui.js                 form building, state, rendering
+      tax.css               old-vs-new comparison, break-even box
+    invest/
+      invest-engine.js      all the goal maths — pure functions, no DOM
+      ui.js                 form building, state, rendering
+      invest.css            horizon readout, funded gauge
+    portfolio/
+      portfolio-engine.js   classification, drift, rebalancing — pure, no DOM
+      xlsx.js               .xlsx and .csv reader, no dependencies
+      ui.js                 form building, state, rendering
+      portfolio.css         import box, editable rows, allocation bars
+    insure/
+      insure-engine.js      bonus accrual and the IRR solver — pure, no DOM
+      ui.js                 form building, state, rendering
+      insure.css            maturity composition bar, year-by-year table
+
+test/                       <- never published
   tax/tax-engine.test.js             22 tests
   invest/invest-engine.test.js       43 tests
   portfolio/portfolio-engine.test.js 40 tests
   portfolio/xlsx.test.js             26 tests
   insure/insure-engine.test.js       38 tests
+package.json                <- never published
 ```
 
 `shared/theme.css` carries the whole design system — tokens, masthead, `.panel`,
@@ -303,13 +310,29 @@ Run `npm test` before every push. It takes under two seconds.
 
 ## Deploying
 
-Push to GitHub, then connect the repo once at
-[app.netlify.com](https://app.netlify.com) or [vercel.com](https://vercel.com).
-Leave the build command empty and the publish directory as `/`.
+Hosted on Cloudflare Pages. Connect the repo once, then every `git push`
+deploys automatically. There's nothing to run and nothing to remember, which is
+the point — if shipping takes effort you'll batch changes, and batches get scary.
 
-After that, every `git push` deploys automatically. There's nothing to run and
-nothing to remember, which is the point — if shipping takes effort you'll batch
-changes, and batches get scary.
+| Setting | Value |
+| --- | --- |
+| Framework preset | None |
+| Build command | *(empty)* |
+| Build output directory | **`public`** |
+
+**The output directory must be `public`, never `/`.** Pointing a host at the
+repo root looks harmless because there is no build step, but the host runs
+`npm install` when it sees a `package.json`, and then uploads whatever it
+finds — including the `node_modules` it just created. That is how the first
+deploy failed: 29 files became 2,060, and Wrangler's own 40 MB `workerd`
+binary tripped the 25 MB per-asset limit.
+
+`public/` exists to draw that line. Nothing outside it is served, so tests,
+config and tooling can never leak into the deployed site.
+
+The same setting works anywhere: publish directory `public` on Netlify, or the
+`/public` folder option on GitHub Pages. Nothing in the repo is
+provider-specific, so moving hosts is a five-minute job.
 
 ---
 

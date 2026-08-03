@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
   ASSUMPTIONS, accruedBonus, finalBonus, premiumInYear,
   irr, schedule, computePolicy
-} from "../../src/insure/insure-engine.js";
+} from "../../public/src/insure/insure-engine.js";
 
 const close = (a, b, tol = 1e-6, msg) =>
   assert.ok(Math.abs(a - b) <= tol, `${msg || "close"}: ${a} vs ${b} (tol ${tol})`);

@@ -4,7 +4,7 @@ import {
   CLASS_KEYS, CLASSES, TEMPLATES, DEFAULT_TOLERANCE_PP,
   parseAmount, classifyHolding, detectColumns, normaliseRows,
   normaliseTargets, analysePortfolio, newMoneyToRebalance
-} from "../../src/portfolio/portfolio-engine.js";
+} from "../../public/src/portfolio/portfolio-engine.js";
 
 const close = (a, b, tol = 1e-6, msg) =>
   assert.ok(Math.abs(a - b) <= tol, `${msg || "close"}: ${a} vs ${b}`);
