@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Split Check — Portfolio Analyser</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./src/shared/theme.css">
+<link rel="stylesheet" href="./src/portfolio/portfolio.css">
+</head>
+<body>
+
+<header class="masthead">
+  <svg class="guilloche" id="guilloche" viewBox="0 0 1200 200" preserveAspectRatio="xMidYMid slice" aria-hidden="true"></svg>
+  <div class="masthead-in">
+    <div>
+      <a class="crumb" href="./index.html">&#8592; All planners</a>
+      <h1 class="wordmark">Split<span>Check</span></h1>
+      <p class="tagline">What share of your portfolio sits in equity, debt and gold — and what it would take to get back to your target.</p>
+    </div>
+    <div class="ay-stamp">
+      Your file<b>Never uploaded</b>read in this tab
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div>
+    <div class="scope-note">
+      <b>Nothing leaves your browser.</b> The spreadsheet is read in this tab by JavaScript running on your own machine.
+      This site has no server, no account and no analytics — there is nowhere for it to send anything.
+    </div>
+
+    <section class="panel">
+      <h2>Where the holdings come from</h2>
+      <div class="panel-body">
+        <div class="row">
+          <label>Input<small>Type them in, or read them out of a file</small></label>
+          <div class="seg">
+            <button type="button" data-mode="manual" aria-pressed="true">Enter directly</button>
+            <button type="button" data-mode="import" aria-pressed="false">Import file</button>
+          </div>
+        </div>
+        <div id="importBox" hidden>
+          <div class="drop" id="drop">
+            <input type="file" id="file" accept=".xlsx,.csv,.tsv,.txt,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+            <p>Drop an <b>.xlsx</b> or <b>.csv</b> here, or paste rows copied straight out of a spreadsheet below.</p>
+            <textarea class="paste" id="paste" placeholder="Name&#9;Value&#9;Class&#10;HDFC Flexi Cap&#9;250000&#9;Equity"></textarea>
+          </div>
+          <p class="hint">
+            Wants a <b>Name</b>, a <b>Value</b> and ideally a <b>Class</b> column — headers can also be called Scheme,
+            Amount, Market Value, Type or Category, in any order. Without a class column the class is guessed from the
+            name and flagged for you to confirm. Rows reading “Total” are ignored.
+            <button type="button" class="linkish" id="tmplBtn">Download a template CSV</button>
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Holdings <em id="holdCount"></em></h2>
+      <div class="panel-body">
+        <div id="notice"></div>
+        <div class="hold-head"><span>Name</span><span>Value</span><span>Class</span><span></span></div>
+        <div id="holdRows"></div>
+        <p class="hint" style="margin-top:10px">
+          <button type="button" class="linkish" id="addRow">Add a holding</button>
+          &nbsp;·&nbsp;
+          <button type="button" class="linkish" id="clearAll">Clear all</button>
+        </p>
+        <p class="hint" id="guessNote"></p>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Your target mix <em>You set this, not the app</em></h2>
+      <div class="panel-body">
+        <div class="tmpl" id="templates"></div>
+        <div class="row"><label for="tEquity">Equity<small>Shares and equity funds</small></label>
+          <input class="inp" type="number" id="tEquity" min="0" step="any"></div>
+        <div class="row"><label for="tDebt">Debt<small>Bonds, deposits, debt funds</small></label>
+          <input class="inp" type="number" id="tDebt" min="0" step="any"></div>
+        <div class="row"><label for="tGold">Gold<small>Gold funds, ETFs and sovereign gold bonds</small></label>
+          <input class="inp" type="number" id="tGold" min="0" step="any"></div>
+        <p class="sum-note" id="sumNote"></p>
+        <div class="subhead">When to act</div>
+        <div class="row"><label for="tol">Rebalancing band<small>Ignore drift smaller than this many percentage points</small></label>
+          <input class="inp" type="number" id="tol" min="0" step="any"></div>
+      </div>
+    </section>
+  </div>
+
+  <aside class="results" aria-live="polite">
+    <div class="verdict">
+      <p class="eyebrow">Largest drift from your target</p>
+      <h3 id="vTitle">Add some holdings</h3>
+      <p class="saving" id="vSaving"></p>
+    </div>
+
+    <div class="panel">
+      <h2>Allocation <em id="allocNote"></em></h2>
+      <div class="alloc">
+        <div class="alloc-row"><span>Now</span><div class="alloc-bar" id="barNow"></div></div>
+        <div class="alloc-row"><span>Target</span><div class="alloc-bar target" id="barTarget"></div></div>
+      </div>
+      <div class="legend" id="legend"></div>
+      <table class="ledger-tbl">
+        <thead><tr><th>Class</th><th class="n">Value</th><th class="n">Now</th><th class="n">Target</th><th class="n">Drift</th></tr></thead>
+        <tbody id="allocBody"></tbody>
+      </table>
+    </div>
+
+    <div class="panel">
+      <h2>To get back to target <em>By moving money between classes</em></h2>
+      <table class="ledger-tbl"><tbody id="tradeBody"></tbody></table>
+    </div>
+
+    <div class="panel">
+      <h2>Without selling anything <em>By adding new money instead</em></h2>
+      <table class="ledger-tbl"><tbody id="addBody"></tbody></table>
+    </div>
+  </aside>
+</main>
+
+<div class="stickybar" id="stickybar" aria-hidden="true">
+  <div><span>Equity / Debt / Gold</span><b class="num" id="sbSplit">—</b></div>
+  <div class="w"><span>Largest drift</span><b class="num" id="sbDrift">—</b></div>
+</div>
+
+<footer class="foot">
+  <h4>Before you trust these numbers</h4>
+  <p>
+    The split is computed from the values you supply, at whatever date those values are from. It does not fetch
+    live prices, so it is only as current as your input. Percentages are shown against the classified total —
+    anything the app could not place is held out and reported separately rather than folded in.
+  </p>
+  <p>
+    Where no class column is present the class is <b>guessed from the holding's name</b> and flagged in amber.
+    Confirm those before relying on the split: a name-based guess cannot tell an arbitrage fund from a pure
+    equity one, and hybrid or balanced funds are left unclassified on purpose rather than split by guesswork.
+  </p>
+  <p>
+    The target mix is yours — the app never picks one for you. The listed templates are common textbook splits
+    offered as starting points, not recommendations. Selling to rebalance can realise capital gains and attract
+    exit loads, neither of which is deducted here; the add-new-money route avoids both. This is an estimate for
+    planning, not financial advice, and it does not name, rank or recommend any fund, scheme or product.
+  </p>
+</footer>
+
+<script type="module" src="./src/portfolio/ui.js"></script>
+</body>
+</html>
