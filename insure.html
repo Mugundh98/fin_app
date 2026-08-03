@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Policy Check — Endowment Plan Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./src/shared/theme.css">
+<link rel="stylesheet" href="./src/insure/insure.css">
+</head>
+<body>
+
+<header class="masthead">
+  <svg class="guilloche" id="guilloche" viewBox="0 0 1200 200" preserveAspectRatio="xMidYMid slice" aria-hidden="true"></svg>
+  <div class="masthead-in">
+    <div>
+      <a class="crumb" href="./index.html">&#8592; All planners</a>
+      <h1 class="wordmark">Policy<span>Check</span></h1>
+      <p class="tagline">What an endowment policy actually returns, worked out from the numbers on your own policy document.</p>
+    </div>
+    <div class="ay-stamp">
+      Guaranteed<b>Sum assured only</b>bonuses are not
+    </div>
+  </div>
+</header>
+
+<nav class="formbar" role="tablist" aria-label="Plan type">
+  <div class="formbar-in">
+    <button class="formtab" role="tab" aria-selected="true"><b>Endowment</b><small>Cover plus savings</small></button>
+    <button class="formtab" role="tab" aria-selected="false" aria-disabled="true"><b>Term</b><small>Not built yet</small></button>
+    <button class="formtab" role="tab" aria-selected="false" aria-disabled="true"><b>Money-back</b><small>Not built yet</small></button>
+    <button class="formtab" role="tab" aria-selected="false" aria-disabled="true"><b>ULIP</b><small>Not built yet</small></button>
+  </div>
+</nav>
+
+<main class="wrap">
+  <div>
+    <div class="scope-note">
+      <b>Endowment plans.</b> A traditional policy that bundles life cover with a savings pot, paying a
+      sum assured plus accrued bonuses at maturity. Take the figures below straight off your policy
+      document or benefit illustration.
+    </div>
+
+    <section class="panel">
+      <h2>The policy</h2>
+      <div class="panel-body">
+        <div class="row"><label for="sumAssured">Sum assured<small>The guaranteed amount, also called basic sum assured</small></label>
+          <input class="inp" type="number" id="sumAssured" min="0" step="any"></div>
+        <div class="row"><label for="annualPremium">Annual premium<small>What you pay each year, before GST</small></label>
+          <input class="inp" type="number" id="annualPremium" min="0" step="any"></div>
+        <div class="row"><label for="policyTerm">Policy term<small>Years until it matures</small></label>
+          <input class="inp" type="number" id="policyTerm" min="1" step="1"></div>
+        <div class="row"><label for="premiumTerm">Premium paying term<small>Years you actually pay for — same as the policy term unless it is a limited-pay plan</small></label>
+          <input class="inp" type="number" id="premiumTerm" min="1" step="1"></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Bonuses <em>Declared, not guaranteed</em></h2>
+      <div class="panel-body">
+        <div class="row"><label for="bonusPerThousand">Simple reversionary bonus<small>Rupees per ₹1,000 of sum assured, per year</small></label>
+          <input class="inp" type="number" id="bonusPerThousand" min="0" step="any"></div>
+        <div class="row"><label for="fabPerThousand">Final additional bonus<small>One-off at maturity, per ₹1,000 of sum assured. Leave at 0 if unsure</small></label>
+          <input class="inp" type="number" id="fabPerThousand" min="0" step="any"></div>
+        <p class="hint">
+          Reversionary bonus accrues on the sum assured and does <b>not</b> compound. Rates are declared
+          each year by the insurer and can be cut — the figure you enter is the insurer's recent rate,
+          not a promise. Recent declared rates on Indian endowment plans have commonly sat around ₹40 to ₹50.
+        </p>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Costs</h2>
+      <div class="panel-body">
+        <div class="row">
+          <label>Add GST on top<small>4.5% in year one, 2.25% after</small></label>
+          <div class="seg">
+            <button type="button" data-gst="1" aria-pressed="false">Yes</button>
+            <button type="button" data-gst="0" aria-pressed="true">No</button>
+          </div>
+        </div>
+        <p class="hint">Leave this off if the premium you entered above is the full amount you actually pay.</p>
+      </div>
+    </section>
+  </div>
+
+  <aside class="results" aria-live="polite">
+    <div class="verdict">
+      <p class="eyebrow">Effective return a year</p>
+      <h3 id="vTitle">Enter your policy</h3>
+      <p class="saving" id="vSaving"></p>
+    </div>
+
+    <div class="panel">
+      <h2>What you get back <em id="matNote"></em></h2>
+      <table class="ledger-tbl"><tbody id="moneySheet"></tbody></table>
+      <div class="mix">
+        <div class="mix-bar" id="mixBar"></div>
+        <div class="mix-legend" id="mixLegend"></div>
+        <p id="mixNote"></p>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Range of outcomes <em>Bonuses can change</em></h2>
+      <table class="ledger-tbl">
+        <thead><tr><th>Scenario</th><th class="n">Maturity</th><th class="n">Return</th></tr></thead>
+        <tbody id="scnBody"></tbody>
+      </table>
+    </div>
+
+    <div class="panel">
+      <h2>Cover while it runs <em>Paid on death during the term</em></h2>
+      <table class="ledger-tbl"><tbody id="coverSheet"></tbody></table>
+      <details class="years">
+        <summary>Year by year</summary>
+        <div class="years-scroll">
+          <table class="ledger-tbl">
+            <thead><tr><th>Yr</th><th class="n">Premium</th><th class="n">Paid so far</th><th class="n">Cover on death</th></tr></thead>
+            <tbody id="yearBody"></tbody>
+          </table>
+        </div>
+      </details>
+    </div>
+  </aside>
+</main>
+
+<div class="stickybar" id="stickybar" aria-hidden="true">
+  <div><span>Maturity</span><b class="num" id="sbMat">—</b></div>
+  <div class="w"><span>Return a year</span><b class="num" id="sbIrr">—</b></div>
+</div>
+
+<footer class="foot">
+  <h4>Before you trust these numbers</h4>
+  <p>
+    Only the <b>sum assured is contractually guaranteed</b>. Reversionary and final additional bonuses are
+    declared by the insurer each year out of its surplus, are not promised in the contract, and can be
+    reduced. That is why the floor scenario above assumes none is ever declared — it is the outcome the
+    policy actually obliges the insurer to deliver.
+  </p>
+  <p>
+    The return shown is the internal rate of return: the single annual rate at which your premiums, paid
+    when they are actually paid, grow into the maturity amount. It is not the total gain — a policy paying
+    back 1.9 times what went in over twenty years is earning well under 10% a year, because most of the
+    money was in for far less than the full term.
+  </p>
+  <p>
+    Not handled: surrender and paid-up values, policy loans, riders and their premiums, survival benefits on
+    money-back plans, unit-linked plans, and the tax treatment of premiums and payouts under sections 80C and
+    10(10D). Mortality charges are not separated out — an endowment bundles cover and savings, and this tool
+    prices the bundle as a whole rather than splitting it.
+  </p>
+  <p>
+    This is an estimate for planning, not financial advice. It does not name, rank or recommend any insurer
+    or policy, and holds no view on whether you should buy, keep, or surrender anything. Speak to a
+    SEBI-registered investment adviser or an IRDAI-licensed agent before acting on any of it.
+  </p>
+</footer>
+
+<script type="module" src="./src/insure/ui.js"></script>
+</body>
+</html>

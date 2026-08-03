@@ -1,12 +1,13 @@
 # FinApp
 
-Three personal-finance planners behind one index page:
+Four personal-finance planners behind one index page:
 
 | Planner | Status |
 | --- | --- |
 | **Investment — GoalPlan** | **working** |
 | **Tax — RegimeCheck** | **working** |
-| Insurance | not built |
+| **Portfolio — SplitCheck** | **working** |
+| **Insurance — PolicyCheck** | **working** (endowment plans only) |
 
 **RegimeCheck** is the Indian income tax calculator: old regime vs new, worked
 line by line, with the deduction figure that would flip the answer.
@@ -17,6 +18,14 @@ published tables: <https://www.incometax.gov.in/iec/foportal/help/individual/ret
 **GoalPlan** is the goal-based investment calculator: the horizon picks the
 asset mix, the asset mix picks the return, and the answer comes back as a
 range rather than a single number.
+
+**SplitCheck** reads a portfolio — from an `.xlsx`, a CSV, a paste, or typed in
+by hand — and reports the equity / debt / gold split against a target you set,
+with the trades that would close the gap.
+
+**PolicyCheck** works out what an endowment policy actually returns, given the
+premiums, the bonuses and when each rupee moves. Endowment plans only for now;
+term, money-back and ULIP are stubbed in the tab strip but not built.
 
 ---
 
@@ -60,9 +69,21 @@ src/
     invest-engine.js        all the goal maths — pure functions, no DOM
     ui.js                   form building, state, rendering
     invest.css              horizon readout, funded gauge
+  portfolio/
+    portfolio-engine.js     classification, drift, rebalancing — pure, no DOM
+    xlsx.js                 .xlsx and .csv reader, no dependencies
+    ui.js                   form building, state, rendering
+    portfolio.css           import box, editable rows, allocation bars
+  insure/
+    insure-engine.js        bonus accrual and the IRR solver — pure, no DOM
+    ui.js                   form building, state, rendering
+    insure.css              maturity composition bar, year-by-year table
 test/
-  tax/tax-engine.test.js       22 tests
-  invest/invest-engine.test.js 43 tests
+  tax/tax-engine.test.js             22 tests
+  invest/invest-engine.test.js       43 tests
+  portfolio/portfolio-engine.test.js 40 tests
+  portfolio/xlsx.test.js             26 tests
+  insure/insure-engine.test.js       38 tests
 ```
 
 `shared/theme.css` carries the whole design system — tokens, masthead, `.panel`,
@@ -122,23 +143,123 @@ fund, scheme or product, and must not acquire one — asset-class labels only.
 
 ---
 
+## The portfolio analyser
+
+### Reading spreadsheets without a dependency
+
+`src/portfolio/xlsx.js` opens a real `.xlsx`. That file is a ZIP of XML parts,
+and both halves are now platform primitives: `DataView` walks the ZIP central
+directory, and `DecompressionStream("deflate-raw")` inflates the members. No
+SheetJS, no build step, nothing to install.
+
+It deliberately avoids `DOMParser` so the same code runs under `node --test`.
+The XML shapes inside a workbook are narrow and stable, so it scans them
+directly. The worksheet is resolved through `workbook.xml` and its rels part —
+`sheet1.xml` is **not** reliably the first tab, and guessing would silently
+read the wrong data.
+
+Not supported, and reported as errors rather than guessed at: ZIP64, encrypted
+workbooks, and the old binary `.xls`. Formula cells yield their last cached
+value, which is what Excel stores.
+
+### What the file needs
+
+A **Name**, a **Value** and ideally a **Class** column. Headers can also be
+called Scheme, Fund, Amount, Market Value, Type or Category, in any order, and
+need not be on row 1. Amounts survive `₹`, `Rs.`, commas in the Indian grouping
+and a trailing `/-`. Rows whose name reads *Total* or *Grand Total* are dropped
+so the portfolio is not counted twice.
+
+### Classification
+
+A class column is taken at face value — the user's word beats any guess. With
+no class column the class is inferred from the holding's name and **marked as a
+guess**, shown in amber in the UI for confirmation. Checks run gold, then debt,
+then equity, because names overlap ("Gold Savings Fund" contains cues for
+more than one).
+
+Anything unrecognised, plus anything declared hybrid, balanced or cash, lands
+in **Unclassified** and is held out of the base rather than split by guesswork.
+Percentages are reported against the classified base, with the unclassified
+amount shown separately — a portfolio that is 20% unrecognised should say so,
+not quietly report the other 80% as if it were the whole picture.
+
+### Rebalancing
+
+Two routes, because they have different tax consequences:
+
+- **Move money between classes** — sell the overweight, buy the underweight.
+  The deltas sum to zero.
+- **Add new money only** — find the smallest total at which every class sits
+  at or below its target, then top up the shortfalls. Nothing is sold, so no
+  gains are realised and no exit load is triggered. If a class has a zero
+  target but a non-zero holding, this is impossible and the app says so
+  instead of pretending.
+
+Drift inside the tolerance band (5 pp by default, editable) is reported but not
+traded on. The target mix is always the user's; the shipped templates are
+common textbook splits offered as starting points, never recommendations.
+
+---
+
+## The endowment calculator
+
+An endowment bundles life cover with a savings pot, which makes the return it
+earns hard to read off the brochure. The calculator works it out from the
+policy's own figures.
+
+**Only the sum assured is contractually guaranteed.** Reversionary and final
+additional bonuses are declared annually out of the insurer's surplus and can
+be cut. That is why the floor scenario assumes none is ever declared — it is
+what the contract actually obliges the insurer to pay. The maturity bar breaks
+out the guaranteed slab against the parts that depend on a future declaration.
+
+Simple reversionary bonus accrues on the sum assured at a rate per ₹1,000 per
+year and **does not compound** — twenty years of bonus is exactly twenty times
+one year of it. Final additional bonus is a one-off at maturity.
+
+The headline figure is an **IRR**, solved by bisection in
+`src/insure/insure-engine.js`. Bisection rather than Newton-Raphson because the
+sign pattern here — a run of premium outflows then a single maturity inflow —
+guarantees exactly one root, and bisection cannot diverge. IRR is not the total
+gain: a policy paying back 1.9× over twenty years is earning well under 10% a
+year, because most of the money was invested for far less than the full term.
+
+Two facts the tests pin down, both easy to get wrong by intuition:
+
+- When premiums and maturity are equal in nominal terms the IRR is **exactly
+  zero**, not negative — at r = 0 discounting is the identity, so the timing
+  drops out. Add GST and it goes properly negative.
+- Paying the same total over *fewer* years gives a *lower* IRR, because the
+  money goes in earlier and works for longer.
+
+GST is optional (4.5% first year, 2.25% after) and off by default, since most
+people quote the premium they actually pay.
+
+Not handled: surrender and paid-up values, policy loans, riders, money-back
+survival benefits, ULIPs, and the 80C / 10(10D) tax treatment. Mortality
+charges are not separated out — the tool prices the bundle as a whole.
+
+---
+
 ## Adding a planner
 
-The insurance card on the home page is a placeholder — a plain
-`<div class="planner is-soon">` block. To make it real:
+All four cards are live. To add a fifth:
 
 1. Create `src/<name>/` with an engine (`*-engine.js`, pure, no DOM), a `ui.js`,
    and a `<name>.css`.
 2. Create `<name>.html` at the root. Link `src/shared/theme.css` first, then
    your own stylesheet. Copy the masthead out of `tax.html` — including the
    `← All planners` crumb and the empty `<svg id="guilloche">`.
-3. In the home page, swap the placeholder `<div>` for an anchor:
-   `<a class="planner is-live" href="./<name>.html">`, and change the status
-   line from `In preparation` to `Open`.
+3. Add a card to the home page:
+   `<a class="planner is-live" href="./<name>.html">`. A card that is not
+   built yet is the same markup as a `<div class="planner is-soon">` with the
+   status line reading `In preparation`.
 4. Add `test/<name>/` — `node --test` picks it up with no config change.
+5. Widen the `.planners` grid in `src/home/home.css` if the row is full.
 
-Keep the engine/UI split. It is the reason both engines are testable in Node
-without a browser, and the reason the tests caught two real bugs.
+Keep the engine/UI split. It is the reason every engine is testable in Node
+without a browser, and the reason the tests keep catching real bugs.
 
 ---
 

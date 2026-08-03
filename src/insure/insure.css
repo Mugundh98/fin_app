@@ -1,0 +1,58 @@
+/* Insurance planner — components only this page uses.
+   Tokens, masthead, form controls, panels, ledger table and footer all come
+   from ../shared/theme.css. */
+
+:root{
+  --sa:#12203C;    /* guaranteed sum assured */
+  --bon:#0E6049;   /* accrued bonus */
+  --fab:#A8760B;   /* final additional bonus */
+}
+
+/* Plan types that are not built yet still show, so the scope is obvious. */
+.formtab[aria-disabled="true"]{cursor:default;opacity:.45}
+.formtab[aria-disabled="true"]:hover{background:none}
+
+/* ---------- headline return ---------- */
+.verdict .figure{
+  font-family:"IBM Plex Mono",monospace;font-size:34px;font-weight:500;
+  letter-spacing:-.03em;color:#fff;display:block;margin:2px 0 0;
+}
+.verdict .figure small{font-size:14px;color:#A9B4C4;letter-spacing:0;margin-left:5px}
+
+/* ---------- what the maturity is made of ---------- */
+.mix{padding:14px 16px 4px}
+.mix-bar{
+  display:flex;height:15px;border-radius:2px;overflow:hidden;
+  border:1px solid var(--rule-soft);background:#EEF1F2;
+}
+.mix-bar i{display:block;height:100%}
+.mix-bar i.sa{background:var(--sa)}
+.mix-bar i.bon{background:var(--bon)}
+.mix-bar i.fab{background:var(--fab)}
+.mix-legend{display:flex;flex-wrap:wrap;gap:12px;padding:9px 0 4px}
+.mix-legend span{display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--ink-soft)}
+.mix-legend i{width:9px;height:9px;border-radius:2px;display:block}
+.mix-legend i.sa{background:var(--sa)} .mix-legend i.bon{background:var(--bon)}
+.mix-legend i.fab{background:var(--fab)}
+.mix p{margin:4px 0 0;font-size:12px;color:var(--ink-faint);line-height:1.45}
+
+/* ---------- scenarios ---------- */
+tr.scn-declared td{background:var(--ledger-wash);color:var(--ink);font-weight:600}
+tr.scn-declared td.n{color:var(--ledger)}
+td.rate{font-family:"IBM Plex Mono",monospace;font-size:12px}
+td.rate.neg{color:var(--vermilion)}
+td.rate.zero{color:var(--ink-faint)}
+
+/* ---------- year by year ---------- */
+details.years{border-top:1px solid var(--rule-soft)}
+details.years summary{
+  padding:10px 16px;cursor:pointer;font-size:12px;color:var(--ink-soft);
+  list-style:none;display:flex;justify-content:space-between;
+}
+details.years summary::-webkit-details-marker{display:none}
+details.years summary::after{content:"+";color:var(--ink-faint)}
+details.years[open] summary::after{content:"–"}
+details.years summary:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
+.years-scroll{max-height:320px;overflow-y:auto}
+.years-scroll table{width:100%}
+.years-scroll thead th{position:sticky;top:0;background:#fff;z-index:1}
