@@ -6,6 +6,6 @@
   "private": true,
   "scripts": {
     "test": "node --test",
-    "dev": "npx --yes serve ."
+    "dev": "npx --yes serve public"
   }
 }

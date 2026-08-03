@@ -4,7 +4,7 @@ import {
   ASSUMPTIONS, monthlyRate, bandFor, futureCost,
   sipSchedule, sipFutureValue, requiredSip,
   ratesFor, defaultInflation, computePlan
-} from "../../src/invest/invest-engine.js";
+} from "../../public/src/invest/invest-engine.js";
 
 const close = (a, b, tol = 1e-6, msg) =>
   assert.ok(Math.abs(a - b) <= tol, `${msg || "close"}: ${a} vs ${b} (tol ${tol})`);
