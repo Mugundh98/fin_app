@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { parseScreener } from "../../public/src/stock/screener-parse.js";
 import {
-  series, isTtm, annual, cagr, ratioSeries, latest, promoterTrend, analyseStock
+  series, pickSeries, isTtm, annual, cagr, ratioSeries, latest, promoterTrend, analyseStock
 } from "../../public/src/stock/stock-engine.js";
 import { PAGE } from "./screener-parse.test.js";
 
@@ -232,4 +232,81 @@ test("the window is measured back from the latest year, not the first usable one
   assert.equal(g.to, "Y9");
   assert.equal(g.years, 3);
   assert.equal(g.truncated, false);
+});
+
+/* ------------------------------------------------------------------
+   Banks and NBFCs label the same lines differently
+   ------------------------------------------------------------------ */
+
+const BANK = parseScreener(`<h1>HDFC Bank Ltd</h1>
+<section id="profit-loss"><table>
+<thead><tr><th class="text"></th><th>Mar 2024</th><th>Mar 2025</th><th>Mar 2026</th></tr></thead>
+<tbody>
+<tr><td class="text">Revenue</td><td>283,649</td><td>335,000</td><td>380,000</td></tr>
+<tr><td class="text">Financing Profit</td><td>52,000</td><td>58,000</td><td>64,000</td></tr>
+<tr><td class="text">Net Profit</td><td>60,812</td><td>67,000</td><td>73,000</td></tr>
+</tbody></table></section>
+<section id="balance-sheet"><table>
+<thead><tr><th class="text"></th><th>Mar 2026</th></tr></thead>
+<tbody>
+<tr><td class="text">Equity Capital</td><td>765</td></tr>
+<tr><td class="text">Reserves</td><td>500,000</td></tr>
+<tr><td class="text">Deposits</td><td>2,500,000</td></tr>
+<tr><td class="text">Borrowing</td><td>700,000</td></tr>
+</tbody></table></section>`);
+
+test("pickSeries takes the first label that exists", () => {
+  const t = { periods: ["A"], byLabel: { Revenue: [10] } };
+  assert.equal(pickSeries(t, ["Sales", "Revenue"])[0].value, 10);
+  const t2 = { periods: ["A"], byLabel: { Sales: [20] } };
+  assert.equal(pickSeries(t2, ["Sales", "Revenue"])[0].value, 20);
+});
+
+test("pickSeries with no match gives an empty series, not a throw", () => {
+  const t = { periods: ["A"], byLabel: {} };
+  assert.equal(pickSeries(t, ["Sales", "Revenue"])[0].value, null);
+});
+
+test("a bank's Revenue is read as sales", () => {
+  const a = analyseStock(BANK);
+  assert.equal(a.latest.sales.value, 380000);
+  assert.ok(a.growth.sales3, "no growth computed for a bank");
+});
+
+test("a bank's Financing Profit is read as operating profit", () => {
+  const a = analyseStock(BANK);
+  assert.equal(a.latest.operating.value, 64000);
+  close(a.latest.operatingMargin.value, (64000 / 380000) * 100, 1e-9);
+});
+
+test("Borrowing in the singular is still borrowing", () => {
+  const a = analyseStock(BANK);
+  const mar26 = a.borrowings.find(p => p.period === "Mar 2026");
+  assert.equal(mar26.value, 700000);
+});
+
+test("deposits are not counted as leverage for a bank", () => {
+  const a = analyseStock(BANK);
+  const de = a.latest.debtToEquity.value;
+  /* 700,000 / (765 + 500,000) — deposits of 2.5m must not be in there */
+  close(de, 700000 / 500765, 1e-9);
+  assert.ok(de < 2, "deposits leaked into the gearing figure");
+});
+
+test("a manufacturer still reads Sales and Operating Profit", () => {
+  const a = analyseStock(parseScreener(PAGE));
+  assert.equal(a.latest.sales.value, 552939);
+  assert.equal(a.latest.operating.value, 60767);
+});
+
+test("a lender's margin carries the source's own name", () => {
+  const bank = analyseStock(BANK);
+  assert.equal(bank.financing, true);
+  assert.equal(bank.marginLabel, "Financing margin");
+});
+
+test("a manufacturer's margin is still called operating margin", () => {
+  const co = analyseStock(parseScreener(PAGE));
+  assert.equal(co.financing, false);
+  assert.equal(co.marginLabel, "Operating margin");
 });

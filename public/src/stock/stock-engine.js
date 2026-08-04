@@ -18,6 +18,23 @@ export function series(table, label){
   return periods.map((period, i) => ({ period, value: isNum(values[i]) ? values[i] : null }));
 }
 
+/* Screener names the same line differently by industry: a bank or an NBFC
+   reports Revenue where a manufacturer reports Sales, Financing Profit where
+   it reports Operating Profit, and Borrowing in the singular. Taking the
+   first label that exists keeps one code path for both. */
+export function pickSeries(table, labels){
+  for(const label of labels){
+    if(table?.byLabel?.[label]) return series(table, label);
+  }
+  return series(table, labels[0]);
+}
+
+export const LABELS = {
+  sales:      ["Sales", "Revenue"],
+  operating:  ["Operating Profit", "Financing Profit"],
+  borrowings: ["Borrowings", "Borrowing"]
+};
+
 /* Screener appends a TTM column to the P&L. It is useful to show but is not a
    financial year, so it must not take part in any year-on-year maths. */
 export const isTtm = p => /^ttm$/i.test(String(p ?? "").trim());
@@ -97,15 +114,17 @@ export function analyseStock(parsed){
   const bs  = parsed?.balanceSheet ?? { periods: [], byLabel: {} };
   const sh  = parsed?.shareholding ?? { periods: [], byLabel: {} };
 
-  const sales      = series(pnl, "Sales");
+  const sales      = pickSeries(pnl, LABELS.sales);
   const expenses   = series(pnl, "Expenses");
-  const operating  = series(pnl, "Operating Profit");
+  const operating  = pickSeries(pnl, LABELS.operating);
   const netProfit  = series(pnl, "Net Profit");
   const eps        = series(pnl, "EPS in Rs");
 
   const equity     = series(bs, "Equity Capital");
   const reserves   = series(bs, "Reserves");
-  const borrowings = series(bs, "Borrowings");
+  /* Deposits are deliberately not counted as borrowing: for a bank they are
+     the business, not leverage. */
+  const borrowings = pickSeries(bs, LABELS.borrowings);
   const totalAssets= series(bs, "Total Assets");
 
   /* Net worth is share capital plus reserves; either alone would mislead. */
@@ -121,8 +140,16 @@ export function analyseStock(parsed){
 
   const promoters = promoterTrend(series(sh, "Promoters"));
 
+  /* A lender's margin is struck after interest expense, so it is routinely
+     negative and is NOT comparable to a manufacturer's operating margin.
+     Carry the source's own name for it rather than flattening both into
+     "operating margin" and inviting the comparison. */
+  const financing = !!pnl.byLabel?.["Financing Margin %"] || !!pnl.byLabel?.["Financing Profit"];
+  const marginLabel = financing ? "Financing margin" : "Operating margin";
+
   return {
     name: parsed?.name ?? "",
+    marginLabel, financing,
     ratios: parsed?.ratios ?? [],
     ratioByLabel: parsed?.ratioByLabel ?? {},
     missing: parsed?.missing ?? [],
