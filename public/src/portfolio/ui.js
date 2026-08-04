@@ -2,7 +2,7 @@ import {
   CLASSES, CLASS_KEYS, TEMPLATES, DEFAULT_TOLERANCE_PP,
   normaliseRows, analysePortfolio, classifyHolding
 } from './portfolio-engine.js';
-import { readSpreadsheet, parseCsv } from './xlsx.js';
+import { readSpreadsheet, parseCsv } from '../shared/xlsx.js';
 import { drawGuilloche } from '../shared/guilloche.js';
 
 /* ============================================================

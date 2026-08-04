@@ -1,10 +1,12 @@
 import { ASSUMPTIONS, computePlan, defaultInflation, sipSchedule } from './invest-engine.js';
 import { drawGuilloche } from '../shared/guilloche.js';
+import { groupIndian, digitsOnly, amountInWords, monthsBetween, describeMonths }
+  from '../shared/format.js';
 
 /* ============================================================
    FORMATTING
    ============================================================ */
-const fmt = n => "₹" + Math.round(Math.abs(n)).toLocaleString("en-IN");
+const fmt = n => "₹" + groupIndian(Math.abs(n));
 const fmtSigned = n => (n < 0 ? "−" : "") + fmt(n);
 const compact = n => {
   const a = Math.abs(n);
@@ -13,6 +15,9 @@ const compact = n => {
   return fmt(n);
 };
 const pct = n => (Math.round(n * 1000) / 10) + "%";
+/* A fraction as a percentage NUMBER for a form field. Rounded, because
+   0.07 * 100 is 7.000000000000001 and that is what the user would see. */
+const pctOf = f => Math.round(f * 10000) / 100;
 /* Required instalments are rounded UP to the next ₹100 — rounding down would
    quietly land the plan short of its target. */
 const sipRound = n => Math.ceil(n / 100) * 100;
@@ -20,21 +25,43 @@ const sipRound = n => Math.ceil(n / 100) * 100;
 /* ============================================================
    STATE
    ============================================================ */
+/* Today and a default target date, as YYYY-MM-DD in local terms. Only used to
+   seed the form — every calculation goes through monthsBetween. */
+const isoToday = () => {
+  const d = new Date();
+  return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, "0"),
+          String(d.getDate()).padStart(2, "0")].join("-");
+};
+const isoPlusYears = n => {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() + n);
+  return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, "0"),
+          String(d.getDate()).padStart(2, "0")].join("-");
+};
+
 const state = {
   goal: "retirement",
   targetToday: 10000000,
   years: 25,
+  startDate: isoToday(),
+  endDate: isoPlusYears(3),
   alreadySaved: 0,
-  inflationPct: defaultInflation("retirement") * 100,
+  inflationPct: pctOf(defaultInflation("retirement")),
   stepUpPct: 0,
   mode: "target",          // "target" = solve for SIP | "budget" = test an amount
   monthlyBudget: 20000
 };
 
+const isDated = () => !!ASSUMPTIONS.goals[state.goal]?.dated;
+const datesInvalid = () => isDated() && monthsBetween(state.startDate, state.endDate) <= 0;
+
 const plan = () => computePlan({
   goal: state.goal,
   targetToday: state.targetToday,
+  /* A dated goal derives its horizon from the two dates; everything else
+     still takes a plain number of years. */
   years: state.years,
+  months: isDated() ? monthsBetween(state.startDate, state.endDate) : undefined,
   alreadySaved: state.alreadySaved,
   monthlyBudget: state.monthlyBudget,
   inflation: state.inflationPct / 100,
@@ -44,11 +71,33 @@ const plan = () => computePlan({
 /* ============================================================
    FORM
    ============================================================ */
-function row(key, label, sub, suffix){
+/* Plain numeric row — percentages, years. */
+function row(key, label, sub){
   return `<div class="row">
     <label for="${key}">${label}${sub ? `<small>${sub}</small>` : ""}</label>
-    <input class="inp" type="number" id="${key}" value="${state[key]}" min="0" step="any"
-      ${suffix ? `aria-describedby="${key}-s"` : ""}>
+    <input class="inp" type="number" id="${key}" value="${state[key]}" min="0" step="any">
+  </div>`;
+}
+
+const wordsFor = n => n > 0 ? "₹" + amountInWords(n) : "";
+
+/* Money row. A rupee figure with six or seven zeroes is unreadable as a bare
+   string of digits, so the field groups as you type and spells the amount out
+   underneath — the two together make a mistyped zero obvious at a glance.
+   type=text, because a number input will not accept the commas. */
+function money(key, label, sub){
+  return `<div class="row">
+    <label for="${key}">${label}${sub ? `<small>${sub}</small>` : ""}</label>
+    <input class="inp" type="text" inputmode="numeric" autocomplete="off"
+      id="${key}" data-money value="${groupIndian(state[key])}">
+  </div>
+  <p class="words" id="${key}-words">${wordsFor(state[key])}</p>`;
+}
+
+function dateRow(key, label, sub){
+  return `<div class="row">
+    <label for="${key}">${label}${sub ? `<small>${sub}</small>` : ""}</label>
+    <input class="inp date" type="date" id="${key}" data-date value="${state[key]}">
   </div>`;
 }
 
@@ -62,7 +111,7 @@ function buildTabs(){
       state.goal = b.dataset.goal;
       /* Switching goal resets inflation to that goal's default. Override it
          afterwards if you disagree — the field stays editable. */
-      state.inflationPct = defaultInflation(state.goal) * 100;
+      state.inflationPct = pctOf(defaultInflation(state.goal));
       buildTabs(); buildForm();
     })
   );
@@ -76,12 +125,16 @@ function buildForm(){
   const budgetMode = state.mode === "budget";
 
   let html = `<section class="panel"><h2>The goal</h2><div class="panel-body">
-    ${row("targetToday", "Target amount", "In today's money, at today's prices")}
-    ${row("years", "Years until you need it", "This alone sets the asset mix and the return")}
+    ${money("targetToday", "Target amount", "In today's money, at today's prices")}
+    ${g.dated
+      ? dateRow("startDate", "Start date", "When you begin putting money aside") +
+        dateRow("endDate", "Target date", "When you need the money in hand") +
+        `<p class="horizon" id="horizonNote"></p>`
+      : row("years", "Years until you need it", "This alone sets the asset mix and the return")}
   </div></section>`;
 
   html += `<section class="panel"><h2>What you already have</h2><div class="panel-body">
-    ${row("alreadySaved", "Amount already saved for this goal", "Grows at the same return as the plan")}
+    ${money("alreadySaved", "Amount already saved for this goal", "Grows at the same return as the plan")}
   </div></section>`;
 
   html += `<section class="panel"><h2>Assumptions <em>Change any of these</em></h2><div class="panel-body">
@@ -101,7 +154,7 @@ function buildForm(){
       </div>
     </div>
     ${budgetMode
-      ? row("monthlyBudget", "Amount you can invest monthly", "The opening instalment, before any step-up")
+      ? money("monthlyBudget", "Amount you can invest monthly", "The opening instalment, before any step-up")
       : `<p class="hint">Switch to <b>Test amount</b> to enter a monthly figure you can manage and see how far it gets you.</p>`}
   </div></section>`;
 
@@ -110,12 +163,42 @@ function buildForm(){
   recalc();
 }
 
+/* Regroup a money field in place, keeping the caret where the typist left it.
+   The caret is tracked by how many DIGITS precede it, not by character
+   offset, so inserting a comma cannot make it drift. */
+function regroup(el){
+  const digitsBefore = digitsOnly(el.value.slice(0, el.selectionStart)).length;
+  const digits = digitsOnly(el.value);
+  const n = digits ? Number(digits) : 0;
+  el.value = digits ? groupIndian(n) : "";
+
+  let seen = 0, pos = digitsBefore === 0 ? 0 : el.value.length;
+  if(digitsBefore > 0){
+    for(let i = 0; i < el.value.length; i++){
+      if(el.value[i] >= "0" && el.value[i] <= "9" && ++seen === digitsBefore){ pos = i + 1; break; }
+    }
+  }
+  el.setSelectionRange(pos, pos);
+  return n;
+}
+
 function wire(){
   document.querySelectorAll("#inputs input[type=number]").forEach(el => {
     el.addEventListener("input", () => {
       state[el.id] = Number(el.value) || 0;
       recalc();
     });
+  });
+  document.querySelectorAll("#inputs input[data-money]").forEach(el => {
+    el.addEventListener("input", () => {
+      state[el.id] = regroup(el);
+      const words = document.getElementById(el.id + "-words");
+      if(words) words.textContent = wordsFor(state[el.id]);
+      recalc();
+    });
+  });
+  document.querySelectorAll("#inputs input[data-date]").forEach(el => {
+    el.addEventListener("input", () => { state[el.id] = el.value; recalc(); });
   });
   document.querySelectorAll("[data-mode]").forEach(btn => {
     btn.addEventListener("click", () => { state.mode = btn.dataset.mode; buildForm(); });
@@ -128,7 +211,7 @@ function wire(){
 function renderDerived(p){
   const r = p.band;
   document.getElementById("derived").innerHTML = `
-    <p class="eyebrow">${p.years} year${p.years === 1 ? "" : "s"} &rarr; asset mix &rarr; return</p>
+    <p class="eyebrow">${describeMonths(p.months)} &rarr; asset mix &rarr; return</p>
     <p class="mix">${r.mix}<span class="pill">${r.equity}</span></p>
     <p class="detail">${r.detail}. ${p.liquid
       ? "Availability is the point, so no growth is assumed."
@@ -143,8 +226,8 @@ function renderDerived(p){
 function renderCost(p){
   const rows = [
     ["major", "Target in today's money", p.targetToday],
-    ["sub", `Add: ${pct(p.inflation)} inflation over ${p.years} year${p.years === 1 ? "" : "s"}`, p.inflationUplift],
-    ["total", `What it costs in ${p.years} year${p.years === 1 ? "" : "s"}`, p.futureTarget]
+    ["sub", `Add: ${pct(p.inflation)} inflation over ${describeMonths(p.months)}`, p.inflationUplift],
+    ["total", `What it costs in ${describeMonths(p.months)}`, p.futureTarget]
   ];
   if(p.alreadySaved > 0){
     rows.push(["neg sub", "Less: your savings grow to", -p.expected.existingFV]);
@@ -209,7 +292,7 @@ function renderSplit(p){
   if(p.stepUp > 0){
     rows.push(["sub", `Final instalment after ${pct(p.stepUp)} step-up`, sched.finalMonthly]);
   }
-  rows.push(["", `Total you put in over ${p.years} year${p.years === 1 ? "" : "s"}`, sched.invested]);
+  rows.push(["", `Total you put in over ${describeMonths(p.months)}`, sched.invested]);
   rows.push(["", "Growth on it", sched.growth]);
   if(p.alreadySaved > 0) rows.push(["", "Existing savings grow to", s.existingFV]);
   rows.push(["total", "Corpus at the goal date",
@@ -234,6 +317,16 @@ function renderVerdict(p){
     return;
   }
 
+  /* The engine floors the horizon at one month, so an end date on or before
+     the start would still yield a figure — an enormous one. Better to say the
+     dates are wrong than to answer a question that was not asked. */
+  if(datesInvalid()){
+    eyebrow.textContent = "Monthly investment needed";
+    title.textContent = "Check the dates";
+    saving.innerHTML = "The target date needs to be at least a month after the start date.";
+    return;
+  }
+
   if(state.mode === "budget"){
     eyebrow.textContent = "Testing " + fmt(p.monthlyBudget) + " a month";
     if(s.shortfall <= 0){
@@ -254,13 +347,20 @@ function renderVerdict(p){
   }
   title.innerHTML = `<span class="figure">${fmt(sipRound(s.requiredSip))}<small>/month</small></span>`;
   saving.innerHTML = p.liquid
-    ? `Set aside every month for ${p.years} year${p.years === 1 ? "" : "s"}. No growth assumed — this money is held available.`
+    ? `Set aside every month for ${describeMonths(p.months)}. No growth assumed — this money is held available.`
     : `On the expected return. A poor run needs <b>${fmt(sipRound(p.byKey.poor.requiredSip))}</b>, a good one <b>${fmt(sipRound(p.byKey.good.requiredSip))}</b>.`;
 }
 
 function renderSticky(p){
   const s = p.expected;
   const budgetMode = state.mode === "budget";
+  if(datesInvalid()){
+    document.getElementById("sbALabel").textContent = "Monthly SIP";
+    document.getElementById("sbAVal").textContent = "—";
+    document.getElementById("sbBLabel").textContent = "Future cost";
+    document.getElementById("sbBVal").textContent = "—";
+    return;
+  }
   document.getElementById("sbALabel").textContent = budgetMode ? "You reach" : "Monthly SIP";
   document.getElementById("sbAVal").textContent = budgetMode
     ? compact(s.projected) : fmt(sipRound(s.requiredSip));
@@ -269,8 +369,24 @@ function renderSticky(p){
     ? (s.shortfall > 0 ? compact(s.shortfall) : "On track") : compact(p.futureTarget);
 }
 
+/* Dated goals only: spell out what the two dates came to, and say so plainly
+   when they do not describe a horizon at all. */
+function renderHorizon(p){
+  const el = document.getElementById("horizonNote");
+  if(!el) return;
+  const raw = monthsBetween(state.startDate, state.endDate);
+  if(raw <= 0){
+    el.className = "horizon bad";
+    el.textContent = "The target date needs to be at least a month after the start date.";
+    return;
+  }
+  el.className = "horizon";
+  el.innerHTML = `That is <b>${describeMonths(raw)}</b> to save — ${p.band.mix.toLowerCase()} territory.`;
+}
+
 function recalc(){
   const p = plan();
+  renderHorizon(p);
   renderDerived(p);
   renderVerdict(p);
   renderCost(p);

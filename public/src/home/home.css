@@ -10,10 +10,12 @@
   padding-bottom:9px;border-bottom:1px solid var(--rule);
 }
 
+/* Six cards read better as two rows of three than one cramped row —
+   at full width that is ~380px each rather than ~180px. */
 .planners{
-  display:grid;grid-template-columns:repeat(4,1fr);gap:16px;align-items:stretch;
+  display:grid;grid-template-columns:repeat(3,1fr);gap:16px;align-items:stretch;
 }
-@media(max-width:1000px){.planners{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:820px){.planners{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:560px){.planners{grid-template-columns:1fr}}
 
 .planner{

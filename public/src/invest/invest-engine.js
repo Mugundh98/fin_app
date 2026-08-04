@@ -13,7 +13,7 @@
 /* Horizon drives the asset mix, and the asset mix drives the return.
    Return is never a free field: it is derived from `years`.
    Bands are [previous, maxYears) — maxYears is exclusive. */
-const BANDS = [
+const STANDARD_BANDS = [
   { key:"debt", maxYears:3, mix:"Debt",
     detail:"Short-duration debt and liquid instruments",
     equity:"~0% equity",
@@ -35,6 +35,29 @@ const BANDS = [
     poor:.085, expected:.12, good:.155 }
 ];
 
+/* An open-ended "financial goal" covers anything from a laptop in six months
+   to a house deposit in fifteen years, so it runs on its own shorter ladder:
+   money you need inside two years does not belong in a market at all, and
+   past five years there is no reason to hold back the equity. */
+const GOAL_BANDS = [
+  { key:"fd", maxYears:2, mix:"Fixed deposit",
+    detail:"A bank deposit, not a market investment",
+    equity:"no equity",
+    /* Contractual, so the spread is narrow — it reflects what rate you can
+       book, not what the market might do. */
+    poor:.0625, expected:.0675, good:.0725 },
+
+  { key:"aggressiveHybrid", maxYears:5, mix:"Aggressive hybrid",
+    detail:"Majority equity with a debt cushion to soften a bad year",
+    equity:"~70% equity",
+    poor:.08, expected:.10, good:.12 },
+
+  { key:"equity", maxYears:Infinity, mix:"Equity",
+    detail:"Predominantly equity",
+    equity:"~90% equity",
+    poor:.085, expected:.12, good:.155 }
+];
+
 /* An emergency fund is held liquid and assumed not to grow. It ignores the
    horizon bands entirely — the point of the money is availability, not return. */
 const LIQUID_BAND = {
@@ -47,7 +70,8 @@ const LIQUID_BAND = {
 export const ASSUMPTIONS = {
   label: "Horizon-linked assumptions",
   generalInflation: .06,
-  bands: BANDS,
+  bands: STANDARD_BANDS,
+  goalBands: GOAL_BANDS,
   liquidBand: LIQUID_BAND,
   scenarioKeys: ["poor","expected","good"],
   scenarioLabels: { poor:"Poor", expected:"Expected", good:"Good" },
@@ -62,8 +86,12 @@ export const ASSUMPTIONS = {
       note:"The down payment portion only, not the full property price." },
     emergency:  { label:"Emergency fund",    inflation:.06, liquid:true,
       note:"Held liquid so it is there on the day you need it. Assumed not to grow." },
-    wealth:     { label:"Wealth creation",   inflation:.06,
-      note:"No fixed end date — a corpus target you are building toward." }
+    /* The catch-all: a car, a holiday, a laptop, a deposit. Dated rather than
+       given in whole years, because these are the goals with a real date on
+       them, and they are often less than a year away. */
+    financial:  { label:"Financial goal",    inflation:.06,
+      dated: true, bands: GOAL_BANDS,
+      note:"Anything with a date on it — a car, a holiday, a laptop, a deposit." }
   }
 };
 
@@ -78,9 +106,9 @@ export function monthlyRate(annual){
   return Math.pow(1 + annual, 1/12) - 1;
 }
 
-export function bandFor(years){
-  for(const b of BANDS) if(years < b.maxYears) return b;
-  return BANDS[BANDS.length - 1];
+export function bandFor(years, bands = STANDARD_BANDS){
+  for(const b of bands) if(years < b.maxYears) return b;
+  return bands[bands.length - 1];
 }
 
 /* Today's money -> the same purchasing power at the goal date. */
@@ -123,10 +151,13 @@ export function requiredSip(gap, years, annualReturn, stepUp = 0){
 
 const num = (v, fallback = 0) => (Number.isFinite(v) ? v : fallback);
 
-/* Resolve the return set for a horizon, honouring the liquid override. */
+/* Resolve the return set for a horizon. A goal may carry its own ladder;
+   the liquid override skips the ladder altogether. */
 export function ratesFor(years, goalKey){
   const goal = ASSUMPTIONS.goals[goalKey];
-  const band = goal && goal.liquid ? LIQUID_BAND : bandFor(years);
+  const band = goal && goal.liquid
+    ? LIQUID_BAND
+    : bandFor(years, (goal && goal.bands) || STANDARD_BANDS);
   return { band, poor: band.poor, expected: band.expected, good: band.good };
 }
 
@@ -140,10 +171,16 @@ export function defaultInflation(goalKey){
      projected    — "I can invest ₹Y a month, where do I land?"
    The UI shows whichever the user asked for; the other is free. */
 export function computePlan(input){
-  const goalKey = ASSUMPTIONS.goals[input.goal] ? input.goal : "wealth";
+  const goalKey = ASSUMPTIONS.goals[input.goal] ? input.goal : "financial";
   const goalDef = ASSUMPTIONS.goals[goalKey];
 
-  const years        = Math.max(1, Math.round(num(input.years, 1)));
+  /* Months are the real unit: SIP instalments are monthly, and a dated goal
+     can easily be under a year away. `years` stays the currency of the band
+     ladder and the compounding, and may be fractional. */
+  const months = Math.max(1, Math.round(
+    Number.isFinite(input.months) ? input.months : num(input.years, 1) * 12
+  ));
+  const years        = months / 12;
   const targetToday  = Math.max(0, num(input.targetToday));
   const alreadySaved = Math.max(0, num(input.alreadySaved));
   const monthlyBudget= Math.max(0, num(input.monthlyBudget));
@@ -189,8 +226,8 @@ export function computePlan(input){
 
   return {
     goalKey, goalLabel: goalDef.label, goalNote: goalDef.note,
-    liquid: !!goalDef.liquid,
-    years, inflation, stepUp,
+    liquid: !!goalDef.liquid, dated: !!goalDef.dated,
+    years, months, inflation, stepUp,
     band: rates.band,
     targetToday, futureTarget,
     inflationUplift: futureTarget - targetToday,

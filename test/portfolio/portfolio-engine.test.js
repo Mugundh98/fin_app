@@ -367,3 +367,127 @@ test("sheet rows through to a rebalancing plan", () => {
 test("CLASSES covers every key the analysis can emit", () => {
   for(const k of [...CLASS_KEYS, "other"]) assert.ok(CLASSES[k], `missing ${k}`);
 });
+
+/* ------------------------------------------------------------------
+   A real broker holding statement.
+
+   Reproduces the shape that broke: eleven rows of metadata, the header
+   on row 13, and several money columns of which only one is the
+   current value. The positional fallback read column B — the quantity —
+   and imported the preamble as holdings.
+   ------------------------------------------------------------------ */
+
+const BROKER_STATEMENT = [
+  ["Report Title", "Holding statements report"],
+  ["Date", "31/07/2026"],
+  ["Client Name", ""],
+  ["Client ID", "17040"],
+  ["PAN", "4560"],
+  ["Download Timestamp", "03/08/2026 22:28:09 IST"],
+  [],
+  ["Total Invested value", "76,72,754.55"],
+  ["Total Current value", "78,00,205.55"],
+  ["Profit & loss", "+1,27,451.01"],
+  ["Unrealised P&L %", "1.66"],
+  [],
+  ["Name","Qty","Buy price","Invested value","Current value",
+   "Unrealised P&L","Unrealised P&L %","Previous close","ISIN"],
+  ["UTI Nifty 50 Index Fund - Growth - Direct Plan",
+   "11,111.59","168.73","18,74,858.5","19,06,082.1","31,223.57","1.67","171.54","INF789F01XA0"],
+  ["UTI Nifty Next 50 Index Fund - Direct Growth Plan",
+   "28,740.54","25.4","7,30,009.77","7,86,203.27","56,193.51","7.7","27.36","INF789FC12T1"],
+  ["NSE:GOLDBEES-EQ",
+   "5,000.00","86.88","4,34,400.00","5,85,550.00","+1,51,150.0","34.8","117.11","INF204KB17I5"],
+  ["HDFC Money Market Fund - Growth - Direct Plan",
+   "75","5,319.66","3,98,979.82","4,68,901.75","69,921.93","17.53","6,251.94","INF179KB1HU9"]
+];
+
+test("the header is found even when it sits below a block of metadata", () => {
+  const cols = detectColumns(BROKER_STATEMENT);
+  assert.equal(cols.headerRow, 12);
+  assert.equal(cols.name, 0);
+  assert.equal(cols.value, 4);     // Current value, NOT Qty and NOT Invested
+  assert.equal(cols.cost, 3);      // Invested value
+});
+
+test("the value column is the current value, never the quantity", () => {
+  const { holdings } = normaliseRows(BROKER_STATEMENT);
+  const uti = holdings.find(h => h.name.startsWith("UTI Nifty 50"));
+  assert.equal(uti.value, 1906082.1);      // not 11111.59
+  assert.equal(uti.cost, 1874858.5);
+});
+
+test("statement metadata never becomes a holding", () => {
+  const { holdings } = normaliseRows(BROKER_STATEMENT);
+  const names = holdings.map(h => h.name.toLowerCase());
+  for(const junk of ["date", "client id", "pan", "download timestamp",
+                     "profit & loss", "unrealised p&l %", "total invested value"]){
+    assert.ok(!names.includes(junk), `${junk} was imported as a holding`);
+  }
+  assert.equal(holdings.length, 4);
+});
+
+test("a PAN is never imported, even from a headerless sheet", () => {
+  /* No recognisable header, so the positional fallback applies — the
+     metadata filter is what has to catch this. */
+  const { holdings, skipped } = normaliseRows([
+    ["PAN", "4560"],
+    ["Client ID", "17040"],
+    ["Some Real Fund", "250000"]
+  ]);
+  assert.equal(holdings.length, 1);
+  assert.equal(holdings[0].name, "Some Real Fund");
+  assert.ok(skipped.some(s => /header/i.test(s.why)));
+});
+
+test("every fund in the statement is read, with its classification", () => {
+  const { holdings } = normaliseRows(BROKER_STATEMENT);
+  assert.deepEqual(holdings.map(h => h.cls), ["equity", "equity", "gold", "debt"]);
+  assert.equal(holdings[2].value, 585550);
+});
+
+test("the statement totals to its own stated current value", () => {
+  const { holdings } = normaliseRows(BROKER_STATEMENT);
+  const total = holdings.reduce((s, h) => s + h.value, 0);
+  /* The four rows above, summed — the file's own "Total Current value"
+     covers more rows than this excerpt, so just check it is in rupees
+     rather than units. */
+  assert.ok(total > 3000000, `total looks like units, not rupees: ${total}`);
+});
+
+test("current value wins over a plain value column wherever both appear", () => {
+  const cols = detectColumns([["Name", "Value", "Current Value"]]);
+  assert.equal(cols.value, 2);
+});
+
+test("a header with more recognised columns beats a thinner earlier one", () => {
+  const cols = detectColumns([
+    ["Name", "Amount"],
+    ["Scheme Name", "Invested value", "Current value", "Category"]
+  ]);
+  assert.equal(cols.headerRow, 1);
+  assert.equal(cols.cost, 1);
+  assert.equal(cols.value, 2);
+  assert.equal(cols.cls, 3);
+});
+
+test("headers survive odd spacing and casing", () => {
+  const cols = detectColumns([["  SCHEME   NAME ", "Current  Value"]]);
+  assert.equal(cols.name, 0);
+  assert.equal(cols.value, 1);
+});
+
+test("the BEES exchange-traded range classifies correctly, in the right order", () => {
+  /* gold and debt are checked before equity, so the specific ones are
+     claimed before the catch-all "bees" ever applies. */
+  assert.equal(classifyHolding("NSE:GOLDBEES-EQ", "").key, "gold");
+  assert.equal(classifyHolding("NSE:LIQUIDBEES-EQ", "").key, "debt");
+  assert.equal(classifyHolding("NSE:BANKBEES-EQ", "").key, "equity");
+  assert.equal(classifyHolding("NSE:NIFTYBEES-EQ", "").key, "equity");
+  assert.equal(classifyHolding("NSE:JUNIORBEES-EQ", "").key, "equity");
+});
+
+test("a bond ETF is debt, not equity, despite the ETF cue", () => {
+  assert.equal(classifyHolding("Bharat Bond ETF April 2031", "").key, "debt");
+  assert.equal(classifyHolding("NSE:SGBDEC31-GB", "").key, "gold");
+});

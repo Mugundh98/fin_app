@@ -1,0 +1,9 @@
+name = "finapp-proxy"
+main = "index.js"
+compatibility_date = "2026-01-01"
+
+# Pin the proxy to your own site once you know its URL, so nobody else's page
+# can call it. Leave it out and it answers any origin — the host allowlist in
+# index.js is still what stops it being a general-purpose relay.
+# [vars]
+# ALLOWED_ORIGIN = "https://fin-risk-app.kaushalarmy4.workers.dev"
