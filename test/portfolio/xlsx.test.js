@@ -4,7 +4,7 @@ import { deflateRawSync } from "node:zlib";
 import {
   findZipEntries, readZipEntry, decodeXml, colRefToIndex,
   parseSharedStrings, parseSheet, parseCsv, readXlsx, readSpreadsheet
-} from "../../public/src/portfolio/xlsx.js";
+} from "../../public/src/shared/xlsx.js";
 
 /* ------------------------------------------------------------------
    A real ZIP writer, so the reader is tested against actual bytes

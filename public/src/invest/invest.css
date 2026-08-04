@@ -71,3 +71,24 @@ td.rate{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-fai
 @media(prefers-reduced-motion:no-preference){
   .gauge .fill{transition:width .2s ease,background .2s ease}
 }
+
+/* ---------- money field readability ---------- */
+/* Sits directly under the amount it describes, right-aligned to line up with
+   the figure rather than the label. */
+.words{
+  margin:-2px 0 6px;
+  font-size:11.5px;color:var(--ledger);text-align:right;
+  min-height:1em;line-height:1.3;
+}
+
+/* ---------- dated goals ---------- */
+.inp.date{
+  font-family:"IBM Plex Sans",sans-serif;text-align:left;font-size:12.5px;
+}
+.horizon{
+  margin:8px 0 0;padding:8px 10px;
+  border-left:3px solid var(--ledger);background:var(--ledger-wash);
+  border-radius:var(--r);font-size:12.5px;color:var(--ink-soft);line-height:1.45;
+}
+.horizon b{color:var(--ink)}
+.horizon.bad{border-left-color:var(--vermilion);background:var(--vermilion-wash)}

@@ -1,6 +1,6 @@
 # FinApp
 
-Four personal-finance planners behind one index page:
+Six personal-finance planners behind one index page:
 
 | Planner | Status |
 | --- | --- |
@@ -8,6 +8,8 @@ Four personal-finance planners behind one index page:
 | **Tax — RegimeCheck** | **working** |
 | **Portfolio — SplitCheck** | **working** |
 | **Insurance — PolicyCheck** | **working** (endowment plans only) |
+| **Dashboard — FolioView** | **working** |
+| **Stocks — LedgerRead** | **working** (needs the proxy Worker) |
 
 **RegimeCheck** is the Indian income tax calculator: old regime vs new, worked
 line by line, with the deduction figure that would flip the answer.
@@ -26,6 +28,17 @@ with the trades that would close the gap.
 **PolicyCheck** works out what an endowment policy actually returns, given the
 premiums, the bonuses and when each rupee moves. Endowment plans only for now;
 term, money-back and ULIP are stubbed in the tab strip but not built.
+
+**FolioView** is the dashboard: total value, asset-class mix, largest holdings,
+concentration and gain, read out of a **PDF**, CSV or Excel statement, or typed
+in by hand. SplitCheck answers "am I off my target"; FolioView answers "what do
+I actually own".
+
+**LedgerRead** analyses a listed company: ten years of P&L and balance sheet,
+growth and margin trends, gearing, and promoter holding over time. It reads
+Screener.in through a proxy Worker you deploy yourself — see
+[The stock analyser](#the-stock-analyser), which is worth reading before you
+rely on it.
 
 ---
 
@@ -64,6 +77,9 @@ public/                     <- the entire deployed site, and only that
     shared/
       theme.css             tokens, masthead, form controls, panels, footer
       guilloche.js          the masthead engraving
+      format.js             Indian grouping, amounts in words, month maths
+      xlsx.js               .xlsx and .csv reader, no dependencies
+      pdf.js                PDF text extraction, no dependencies
     home/
       home.css              planner index cards
     tax/
@@ -76,22 +92,47 @@ public/                     <- the entire deployed site, and only that
       invest.css            horizon readout, funded gauge
     portfolio/
       portfolio-engine.js   classification, drift, rebalancing — pure, no DOM
-      xlsx.js               .xlsx and .csv reader, no dependencies
       ui.js                 form building, state, rendering
       portfolio.css         import box, editable rows, allocation bars
     insure/
       insure-engine.js      bonus accrual and the IRR solver — pure, no DOM
       ui.js                 form building, state, rendering
       insure.css            maturity composition bar, year-by-year table
+    dash/
+      dash-engine.js        totals, weights, concentration, gain — pure, no DOM
+      ui.js                 form building, state, rendering
+      dash.css              stat tiles, mix bar, editable rows
+    stock/
+      screener-parse.js     Screener page -> tables — pure, no DOM
+      yahoo.js              Yahoo chart JSON -> price series — pure, no DOM
+      stock-engine.js       growth, margins, gearing, promoter trend — pure
+      ui.js                 form building, state, SVG charts
+      stock.css             ratio grid, charts, financial tables
 
 test/                       <- never published
+  shared/format.test.js              21 tests
   tax/tax-engine.test.js             22 tests
-  invest/invest-engine.test.js       43 tests
+  invest/invest-engine.test.js       56 tests
   portfolio/portfolio-engine.test.js 40 tests
   portfolio/xlsx.test.js             26 tests
   insure/insure-engine.test.js       38 tests
+  shared/pdf.test.js                 35 tests
+  dash/dash-engine.test.js           28 tests
+  stock/screener-parse.test.js       18 tests
+  stock/stock-engine.test.js         30 tests
+  stock/yahoo.test.js                20 tests
+worker/                     <- never published, deployed separately
+  index.js                  allowlisted CORS proxy (Cloudflare Worker)
+  wrangler.toml
 package.json                <- never published
 ```
+
+`shared/format.js` implements Indian digit grouping itself rather than calling
+`toLocaleString("en-IN")`, so the output cannot vary with whichever ICU data a
+runtime happens to ship, and can be tested in Node exactly as it renders in a
+browser. Money fields group as you type and spell the amount out underneath
+(`₹12 lakh 76 thousand`) — a seven-digit figure is unreadable as bare digits,
+and the two together make a mistyped zero obvious.
 
 `shared/theme.css` carries the whole design system — tokens, masthead, `.panel`,
 `.row`, `.inp`, `.seg`, `.ledger-tbl`, the sticky mobile bar. A planner's own
@@ -132,6 +173,26 @@ The poor/good spread widens with the equity share, because that is where the
 dispersion actually is. Three columns exist so the output reads as a range —
 a single figure would read as a promise.
 
+**The general "Financial goal" runs on a second, shorter ladder.** It is the
+catch-all for anything with a date on it — a car, a holiday, a laptop, a
+deposit — and those goals are often under a year away, so it uses:
+
+| Horizon | Mix | Poor | Expected | Good |
+| --- | --- | --- | --- | --- |
+| under 2 years | fixed deposit | 6.25% | 6.75% | 7.25% |
+| 2 to 5 | aggressive hybrid | 8% | 10% | 12% |
+| 5 or more | equity | 8.5% | 12% | 15.5% |
+
+The deposit band is deliberately narrow: it is a contractual rate, so the
+spread reflects what rate you can book, not what a market might do. Money
+needed inside two years does not belong in a market at all, and past five
+years there is no reason to hold equity back.
+
+That goal takes a **start and target date** rather than a number of years, and
+the horizon is carried in **months** — a laptop eight months away cannot be
+expressed in whole years. The other five goals keep the years box and the
+standard ladder above; the two ladders never mix.
+
 **Each goal carries its own inflation default,** overridable in the form:
 education 10%, marriage 7%, everything else the general 6%. An emergency fund
 overrides the horizon table entirely and is modelled as liquid at 0% — the
@@ -171,11 +232,34 @@ value, which is what Excel stores.
 
 ### What the file needs
 
-A **Name**, a **Value** and ideally a **Class** column. Headers can also be
-called Scheme, Fund, Amount, Market Value, Type or Category, in any order, and
-need not be on row 1. Amounts survive `₹`, `Rs.`, commas in the Indian grouping
-and a trailing `/-`. Rows whose name reads *Total* or *Grand Total* are dropped
-so the portfolio is not counted twice.
+A **Name**, a **Value** and ideally a **Class** column, plus **Invested** if
+the sheet has one. Headers can also be called Scheme, Fund, Amount, Market
+Value, Type or Category, in any order. Amounts survive `₹`, `Rs.`, commas in
+the Indian grouping and a trailing `/-`.
+
+**The header does not have to be on row 1.** A broker statement opens with a
+block of metadata — report title, client name, PAN, download timestamp,
+portfolio totals — and the real header can sit a dozen rows down. Up to 60 rows
+are scanned, and each candidate is *scored* rather than taking the first that
+matches, so a full header beats a thin coincidental one.
+
+Two rules exist because getting them wrong is silent rather than loud:
+
+- **`VALUE_HEADERS` is a priority list, not a column search.** A statement has
+  several money columns — buy price, invested value, current value, previous
+  close — and taking whichever sits leftmost picks the wrong one. The specific
+  "what it is worth today" names are matched first. `Invested` is deliberately
+  excluded from it and read as cost instead.
+- **Statement preamble is filtered out by name.** Rows called *Date*,
+  *Client ID*, *PAN*, *Profit & loss*, *Unrealised P&L* and so on look exactly
+  like holdings to a positional reader — a label and a number. They are dropped
+  and reported, along with *Total* rows. Your PAN has no business being
+  imported as a position.
+
+Without those, a statement whose header sits below the scan window falls back
+to positional columns and reads column B — which on most broker exports is the
+**quantity**. Units then masquerade as rupees, and the total looks plausible
+enough to believe. There is a regression test built from a real statement.
 
 ### Classification
 
@@ -246,6 +330,133 @@ people quote the premium they actually pay.
 Not handled: surrender and paid-up values, policy loans, riders, money-back
 survival benefits, ULIPs, and the 80C / 10(10D) tax treatment. Mortality
 charges are not separated out — the tool prices the bundle as a whole.
+
+---
+
+## Reading a PDF without a dependency
+
+`shared/pdf.js` extracts text from a PDF. This is harder than the spreadsheet
+readers and worth understanding before trusting it.
+
+**A PDF is not a table.** There are no rows, columns or cells in the file. Text
+is drawn by content-stream operators at coordinates, and any structure is
+something the reader has to infer. So it:
+
+1. Finds every `stream` in the file and inflates the FlateDecode ones — note
+   `DecompressionStream("deflate")`, the zlib-wrapped form, where a ZIP member
+   needs `"deflate-raw"`.
+2. Walks the text operators (`Tj`, `TJ`, `Td`, `TD`, `Tm`, `T*`), tracking the
+   pen position, and emits positioned runs of text.
+3. Groups runs sharing a baseline into a row, then splits each row into cells
+   wherever the horizontal gap exceeds a threshold.
+
+Streams are located by scanning for the keyword rather than by parsing the
+cross-reference table, because real files are full of incremental updates and
+broken xrefs. Subset fonts map bytes to arbitrary glyph ids, so every
+`ToUnicode` CMap in the file is merged into one table and applied — resolving
+which font is active per run would mean walking page resource dictionaries,
+and in practice the subsets agree.
+
+**What it cannot do, reported as errors rather than guessed at:**
+
+| Input | What happens |
+| --- | --- |
+| Password-protected PDF | Named and refused. CAMS and KFintech CAS statements always are — save an unprotected copy, or export CSV. |
+| Scanned or photographed statement | Explained: a picture has no text in it. There is no OCR here. |
+| Screenshot (PNG/JPEG/HEIC) | Detected by magic bytes and explained, rather than silently finding nothing. |
+| Exotic font with no ToUnicode | May come back as mojibake. |
+
+Because the result is an inference, the dashboard shows what it read next to
+the holdings it produced, flags the import as one to check, and makes every row
+editable. **The manual path is not a fallback for failure — it is the same
+path.** An import just pre-fills it.
+
+---
+
+## The stock analyser
+
+### Why it needs a Worker
+
+Screener, Trendlyne and Yahoo Finance all refuse cross-origin reads, so a page
+on this site cannot fetch them — the browser blocks it before the request is
+even made. This was measured, not assumed:
+
+| Source | Cross-origin fetch |
+| --- | --- |
+| screener.in | blocked |
+| trendlyne.com | blocked |
+| Yahoo Finance | blocked (chart data reachable via the Worker) |
+| moneycontrol.com | allowed |
+
+MoneyControl is the exception and has a working JSON price feed, but its
+financials live in 1.2 MB HTML pages and its historical-chart endpoint returns
+403. Promoter holding is the real gap: it is an India-specific disclosure and
+no free API carries it, which is exactly why Screener is worth reading.
+
+**Yahoo is used for the price series and nothing else.** Its chart endpoint is
+open and gives five years of monthly OHLCV in rupees — the one thing Screener
+does not hand over cheaply, and the reason the analyser has a price chart at
+all. Its fundamentals endpoint (`quoteSummary`) answers `401 Invalid Crumb`:
+Yahoo put it behind a cookie-and-crumb handshake. That is an access control
+somebody deliberately added, and working around it is a different thing from
+reading a page served to anyone who asks, so the Worker allowlist covers
+`/v8/finance/chart/` only. Statements and promoter holding come from Screener.
+
+The price fetch runs after the financials and its failures are swallowed —
+a delisted ticker or a Yahoo outage hides the price panel and costs nothing
+else. There are tests for both paths.
+
+So `worker/` holds a small Cloudflare Worker that fetches server-side, where
+the cross-origin rule does not apply, and returns the page with permissive
+CORS headers. Deploy it once:
+
+```bash
+cd worker && npx wrangler deploy
+```
+
+Paste the URL it prints into the analyser's proxy box. It is stored in your
+browser only.
+
+**The Worker is not an open proxy.** It serves an allowlist of exact host and
+path patterns — Screener company pages and the MoneyControl price feed — and
+refuses everything else with a 403, so it cannot be found and used as a
+general-purpose relay. Set `ALLOWED_ORIGIN` in `wrangler.toml` to pin it to
+your own site as well.
+
+### What it does and does not promise
+
+This is **scraping**: reading a page built for human eyes. Three consequences
+worth stating plainly.
+
+- **It will break.** Screener owes nobody notice before changing its markup.
+  Every extractor fails soft — a section that cannot be read comes back empty
+  rather than throwing, the page names which sections it failed to read, and
+  the corresponding panel is hidden rather than shown as a convincing zero.
+  There is a test that renames a section and asserts the rest still parses.
+- **It may sit outside their terms of use.** That is a matter between you and
+  them; the code takes no view.
+- **The numbers are Screener's**, built from company filings. Nothing here
+  restates or verifies them.
+
+The parser is regex-based rather than `DOMParser` for the same reason as the
+xlsx and pdf readers: that way the fragile part runs under `node --test`
+against fixture markup, so a change in Screener's HTML shows up as a failing
+test rather than a blank page.
+
+### One arithmetic rule worth knowing
+
+Growth is compound annual growth between the two years actually used, and both
+are named in the output. Two things it deliberately does:
+
+- **A TTM column never takes part.** It is a part year; counted as a full one
+  it would flatter growth badly.
+- **A missing or loss-making year is skipped as an endpoint but still counted
+  as a year elapsed.** Compacting the usable points first would shorten the
+  timeline — `100 → (loss year) → 121` would read as one year of 21% instead
+  of two years of 10%. That was a real bug, and there is a regression test.
+
+Where the window asked for is longer than the history available, the figure is
+labelled with the span actually used rather than quietly pretending.
 
 ---
 

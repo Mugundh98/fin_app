@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ledger Read — Stock Analyser</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./src/shared/theme.css">
+<link rel="stylesheet" href="./src/stock/stock.css">
+</head>
+<body>
+
+<header class="masthead">
+  <svg class="guilloche" id="guilloche" viewBox="0 0 1200 200" preserveAspectRatio="xMidYMid slice" aria-hidden="true"></svg>
+  <div class="masthead-in">
+    <div>
+      <a class="crumb" href="./index.html">&#8592; All planners</a>
+      <h1 class="wordmark">Ledger<span>Read</span></h1>
+      <p class="tagline">Ten years of a company's own numbers — growth, margins, leverage and who owns it.</p>
+    </div>
+    <div class="ay-stamp">
+      Source<b>Screener.in</b>read through your proxy
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div>
+    <section class="panel">
+      <h2>Look up a company</h2>
+      <div class="panel-body">
+        <div class="lookup">
+          <input type="text" id="ticker" placeholder="NSE code, e.g. RELIANCE, TCS, HDFCBANK" autocomplete="off">
+          <button type="button" class="go" id="go">Fetch</button>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <label>Financials<small>Consolidated includes subsidiaries</small></label>
+          <div class="seg">
+            <button type="button" data-basis="consolidated" aria-pressed="true">Consolidated</button>
+            <button type="button" data-basis="standalone" aria-pressed="false">Standalone</button>
+          </div>
+        </div>
+        <div id="notice"></div>
+
+        <details class="setup" id="setup">
+          <summary>Proxy settings — needed once before the first fetch</summary>
+          <ol>
+            <li>Screener does not allow other sites to read its pages directly, so a
+                small Cloudflare Worker fetches on your behalf. The code is in
+                <code>worker/</code> in this repo.</li>
+            <li>Deploy it: <code>cd worker &amp;&amp; npx wrangler deploy</code></li>
+            <li>Paste the URL it prints below.</li>
+          </ol>
+          <div class="lookup" style="margin-top:10px">
+            <input type="text" id="proxy" placeholder="https://finapp-proxy.your-name.workers.dev" autocomplete="off">
+            <button type="button" class="go" id="saveProxy">Save</button>
+          </div>
+          <p class="hint" style="margin-top:8px">
+            Stored in this browser only. The Worker refuses every host except Screener and
+            MoneyControl, so it cannot be used as a general proxy.
+          </p>
+        </details>
+      </div>
+    </section>
+
+    <section class="panel" id="pnlPanel" hidden>
+      <h2>Profit &amp; loss <em id="pnlNote"></em></h2>
+      <div class="scrollx"><table class="fin" id="pnlTable"></table></div>
+    </section>
+
+    <section class="panel" id="bsPanel" hidden>
+      <h2>Balance sheet <em id="bsNote"></em></h2>
+      <div class="scrollx"><table class="fin" id="bsTable"></table></div>
+    </section>
+
+    <section class="panel" id="qtrPanel" hidden>
+      <h2>Quarterly results</h2>
+      <div class="scrollx"><table class="fin" id="qtrTable"></table></div>
+    </section>
+  </div>
+
+  <aside class="results" aria-live="polite">
+    <div class="verdict">
+      <p class="eyebrow">Company</p>
+      <h3 id="vTitle">Nothing loaded</h3>
+      <p class="saving" id="vSaving">Enter an NSE code and fetch, or paste a page below.</p>
+    </div>
+
+    <div class="panel" id="pricePanel" hidden>
+      <h2>Share price <em id="priceNote"></em></h2>
+      <div class="ratios" id="priceTiles"></div>
+      <div class="chart" id="priceChart"></div>
+    </div>
+
+    <div class="panel" id="ratioPanel" hidden>
+      <h2>Key ratios <em>As reported</em></h2>
+      <div class="ratios" id="ratios"></div>
+    </div>
+
+    <div class="panel" id="chartPanel" hidden>
+      <h2>Sales, profit and margin <em id="chartNote"></em></h2>
+      <div class="chart" id="chart"></div>
+      <div class="legend">
+        <span><i class="sales"></i>Sales</span>
+        <span><i class="profit"></i>Net profit</span>
+        <span><i class="margin"></i>Operating margin</span>
+      </div>
+    </div>
+
+    <div class="panel" id="growthPanel" hidden>
+      <h2>Growth <em>Compound, annual</em></h2>
+      <table class="ledger-tbl"><tbody id="growthBody"></tbody></table>
+    </div>
+
+    <div class="panel" id="promoPanel" hidden>
+      <h2>Promoter holding <em id="promoNote"></em></h2>
+      <div class="chart" id="promoChart"></div>
+      <table class="ledger-tbl"><tbody id="promoBody"></tbody></table>
+    </div>
+
+    <div class="panel" id="shPanel" hidden>
+      <h2>Shareholding <em>Latest quarter</em></h2>
+      <table class="ledger-tbl"><tbody id="shBody"></tbody></table>
+    </div>
+  </aside>
+</main>
+
+<footer class="foot">
+  <h4>Before you trust these numbers</h4>
+  <p>
+    Every figure comes from <b>Screener.in</b>, which builds it from the company's own filings.
+    This page does not check it, restate it, or hold any of it. If Screener is wrong, this is wrong.
+  </p>
+  <p>
+    <b>It is read by scraping a page built for human eyes.</b> Screener owes nobody notice before
+    changing its markup, and when it does, a section here will go blank — the page names which
+    sections it failed to read rather than showing an empty panel as though it were a zero. Reading
+    a site this way may also sit outside its terms of use; that is a matter between you and them.
+  </p>
+  <p>
+    Growth is compound annual growth between the two years named, computed on annual columns only —
+    a TTM column is a part year and would flatter it. Where a year is missing or loss-making it is
+    skipped as an endpoint but <b>still counted as a year elapsed</b>, so the rate is not overstated.
+    Margins and gearing are computed from the company's own reported lines.
+  </p>
+  <p>
+    This is a reading aid, not research and not financial advice. Nothing here is scored, rated or
+    recommended, and no view is expressed on whether any share is worth owning. Consult a
+    SEBI-registered investment adviser before acting on any of it.
+  </p>
+</footer>
+
+<script type="module" src="./src/stock/ui.js"></script>
+</body>
+</html>

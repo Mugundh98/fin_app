@@ -40,11 +40,16 @@ const GUESS = {
            "fd ","term deposit","nsc","corporate bond","money market","treasury",
            "overnight","ultra short","short duration","low duration","banking and psu",
            "banking & psu","dynamic bond","credit risk","income fund","savings certificate"],
-  equity: ["equity","elss","nifty","sensex","index","large cap","largecap","mid cap",
-           "midcap","small cap","smallcap","flexi cap","flexicap","multi cap","multicap",
-           "bluechip","blue chip","focused","contra","value fund","dividend yield",
-           "infrastructure","pharma","banking fund","technology fund","consumption",
-           "opportunities","growth fund","shares","stock","ltd","limited"]
+  equity: ["equity","elss","tax saver","nifty","sensex","index","large cap","largecap",
+           "mid cap","midcap","small cap","smallcap","flexi cap","flexicap","multi cap",
+           "multicap","bluechip","blue chip","focused","contra","value fund",
+           "dividend yield","infrastructure","pharma","banking fund","technology fund",
+           "consumption","opportunities","growth fund","shares","stock","ltd","limited",
+           /* Nippon's BEES range is all over Indian portfolios. Safe to treat as
+              equity here only because gold and debt are checked first, so
+              GOLDBEES and LIQUIDBEES are already claimed by the time we look. */
+           "bees","etf","bank nifty","nifty bank","psu bank","bharat 22","junior",
+           "momentum","low volatility","equal weight","sectoral","thematic"]
 };
 
 /* Allocation templates the user can start from and then edit. These are
@@ -105,35 +110,88 @@ export function classifyHolding(name, declared){
 const NAME_HEADERS  = ["name","holding","holdings","scheme","scheme name","fund",
                        "fund name","security","instrument","particulars","description",
                        "asset","investment"];
-const VALUE_HEADERS = ["value","amount","current value","market value","market val",
-                       "current amount","invested","invested value","worth","corpus",
-                       "balance","total","present value","valuation"];
+/* Order is PRIORITY, not preference by column position. A broker statement
+   carries several money columns — buy price, invested value, current value,
+   previous close — and picking whichever appears leftmost would pick the wrong
+   one. The most specific "what it is worth today" names come first.
+
+   "Invested" is deliberately absent: a statement carrying both an invested
+   figure and a current one means the current one, and treating cost as value
+   would understate every gain. It is picked up as cost instead. */
+const VALUE_HEADERS = ["current value","current val","current market value",
+                       "market value","market val","closing value","present value",
+                       "current amount","valuation","value","worth","corpus",
+                       "balance","amount","total"];
+
+const COST_HEADERS  = ["invested","invested value","invested amount","amount invested",
+                       "cost","cost value","purchase value","buy value","investment cost",
+                       "principal"];
 const CLASS_HEADERS = ["class","type","asset class","assetclass","asset type",
                        "category","segment","asset category","kind"];
 
-const norm = s => String(s ?? "").trim().toLowerCase();
+/* Collapses internal runs of whitespace too — "Current  Value" and
+   "Current Value" are the same header. */
+const norm = s => String(s ?? "").trim().toLowerCase().replace(/\s+/g, " ");
 
-/* Find the header row and which column is which. Falls back to positional
-   columns (A name, B value, C class) when there is no recognisable header. */
+/* First name in `list` that appears anywhere in the row wins, so the list
+   order decides priority rather than the column order in the sheet. */
+function pickHeader(cells, list){
+  for(const want of list){
+    const i = cells.indexOf(want);
+    if(i !== -1) return i;
+  }
+  return -1;
+}
+
+/* Find the header row and which column is which.
+
+   Real statements open with a block of metadata — report title, client name,
+   PAN, totals — so the header can sit a long way down. Scanning only the first
+   handful of rows misses it, and the positional fallback then reads whatever
+   is in column B, which on a broker statement is usually the quantity.
+
+   Every candidate row is scored rather than taking the first that matches, so
+   a richer header beats a thin coincidental one. */
 export function detectColumns(rows){
-  const limit = Math.min(rows.length, 12);
+  const limit = Math.min((rows || []).length, 60);
+  let best = null;
+
   for(let r = 0; r < limit; r++){
     const cells = (rows[r] || []).map(norm);
-    const name  = cells.findIndex(c => NAME_HEADERS.includes(c));
-    const value = cells.findIndex(c => VALUE_HEADERS.includes(c));
-    if(name !== -1 && value !== -1){
-      return {
-        headerRow: r, name, value,
-        cls: cells.findIndex(c => CLASS_HEADERS.includes(c))
-      };
-    }
+    const name  = pickHeader(cells, NAME_HEADERS);
+    const value = pickHeader(cells, VALUE_HEADERS);
+    if(name === -1 || value === -1) continue;
+
+    const cls  = pickHeader(cells, CLASS_HEADERS);
+    const cost = pickHeader(cells, COST_HEADERS);
+    /* A row naming more of the columns we understand is more likely to be the
+       real header; an earlier row wins ties. */
+    const score = 4 + (cls !== -1 ? 1 : 0) + (cost !== -1 ? 1 : 0)
+                    + Math.min(cells.filter(Boolean).length, 8) * 0.01;
+    if(!best || score > best.score) best = { headerRow: r, name, value, cls, cost, score };
   }
-  return { headerRow: -1, name: 0, value: 1, cls: 2 };
+
+  if(best){ const { score, ...cols } = best; return cols; }
+  return { headerRow: -1, name: 0, value: 1, cls: 2, cost: -1 };
 }
 
 /* Spreadsheets almost always carry a "Total" line. Counting it would double
    the portfolio, so drop those rows. */
 const TOTAL_ROW = /^\s*(grand\s+)?(total|sum|net\s+total)\b/i;
+
+/* The preamble every broker and registrar puts above the holdings: who you
+   are, when it was generated, and the totals. These are label/number pairs
+   that look exactly like holdings to a positional reader, and one of them is
+   your PAN — which has no business being imported as a position. */
+const META_ROW = new RegExp("^\\s*(" + [
+  "report\\s*title", "client\\s*(name|id|code)", "pan\\b", "customer\\s*(id|name)",
+  "folio(\\s*(no|number))?\\b", "download\\s*timestamp", "generated\\s*(on|at|by)?\\b",
+  "statement(\\s*(date|period|of))?\\b", "holding\\s*statement", "as\\s*(on|of)\\b",
+  "date\\b", "period\\b", "broker\\b", "dp\\s*(id|name)", "demat", "bo\\s*id",
+  "account\\s*(no|number|name)", "profit\\s*(and|&)\\s*loss", "p\\s*&\\s*l\\b",
+  "unrealised", "unrealized", "realised", "realized", "nav\\s*date",
+  "scheme\\s*count", "portfolio\\s*value", "invested\\s*value\\b"
+].join("|") + ")", "i");
 
 /* Raw sheet rows -> holdings. Rows without a usable positive amount are
    skipped, and the reason is reported so nothing disappears silently. */
@@ -150,12 +208,18 @@ export function normaliseRows(rows){
 
     if(!name && !Number.isFinite(amount)) continue;          // blank line
     if(TOTAL_ROW.test(name)){ skipped.push({ row:r+1, name, why:"looks like a total row" }); continue; }
+    if(META_ROW.test(name)){ skipped.push({ row:r+1, name, why:"statement header, not a holding" }); continue; }
     if(!Number.isFinite(amount)){ skipped.push({ row:r+1, name, why:"no amount" }); continue; }
     if(amount <= 0){ skipped.push({ row:r+1, name, why:"amount is not positive" }); continue; }
 
     const declared = cols.cls === -1 ? "" : row[cols.cls];
     const { key, source } = classifyHolding(name, declared);
-    holdings.push({ name: name || "(unnamed)", value: amount, cls: key, source });
+    /* Cost is optional. Left undefined rather than zero when absent, so a
+       dashboard can tell "no cost column" from "bought for nothing". */
+    const cost = cols.cost === -1 ? NaN : parseAmount(row[cols.cost]);
+    const holding = { name: name || "(unnamed)", value: amount, cls: key, source };
+    if(Number.isFinite(cost) && cost > 0) holding.cost = cost;
+    holdings.push(holding);
   }
   return { holdings, skipped, columns: cols };
 }
