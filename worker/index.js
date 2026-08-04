@@ -19,7 +19,14 @@
 const ALLOW = [
   { host: "www.screener.in",            path: /^\/company\/[A-Za-z0-9&._-]+\/(consolidated\/)?$/ },
   { host: "screener.in",                path: /^\/company\/[A-Za-z0-9&._-]+\/(consolidated\/)?$/ },
-  { host: "priceapi.moneycontrol.com",  path: /^\/pricefeed\/[a-z]+\/equitycash\/[A-Za-z0-9]+$/ }
+  { host: "priceapi.moneycontrol.com",  path: /^\/pricefeed\/[a-z]+\/equitycash\/[A-Za-z0-9]+$/ },
+  /* Yahoo's chart endpoint is open and gives price history, which nothing
+     else free does — MoneyControl's equivalent returns 403. Its fundamentals
+     endpoint is NOT here: Yahoo put that behind a cookie-and-crumb handshake,
+     and working around an access control is a different thing from reading a
+     page that is served to anyone who asks. Financials come from Screener. */
+  { host: "query1.finance.yahoo.com",   path: /^\/v8\/finance\/chart\/[A-Za-z0-9.^-]+$/ },
+  { host: "query2.finance.yahoo.com",   path: /^\/v8\/finance\/chart\/[A-Za-z0-9.^-]+$/ }
 ];
 
 /* Fundamentals move on results day. An hour is plenty, and keeps a page

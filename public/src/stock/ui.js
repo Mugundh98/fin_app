@@ -1,5 +1,6 @@
 import { parseScreener } from './screener-parse.js';
 import { analyseStock } from './stock-engine.js';
+import { chartUrl, parseYahooChart } from './yahoo.js';
 import { drawGuilloche } from '../shared/guilloche.js';
 import { groupIndian } from '../shared/format.js';
 
@@ -76,6 +77,35 @@ function combinedChart(sales, profit, margin){
     const cx = PAD.l + slot * i + slot / 2;
     svg += `<circle class="dot-margin" cx="${cx.toFixed(1)}" cy="${ym(v.margin).toFixed(1)}" r="2"><title>${esc(v.period)} margin ${pct(v.margin)}</title></circle>`;
   });
+  return svg + `</svg>`;
+}
+
+/* Price is a dense series with no meaningful zero, so it gets a zoomed band
+   and no bars — a 0-based axis would flatten five years into a stripe. */
+function priceChart(points){
+  if(points.length < 2) return `<p class="hint">Not enough price history to chart.</p>`;
+
+  const h = 130, innerW = W - PAD.l - PAD.r, innerH = h - PAD.t - PAD.b;
+  const closes = points.map(p => p.close);
+  const lo = Math.min(...closes), hi = Math.max(...closes);
+  const span = Math.max(hi - lo, hi * 0.02);
+  const y = v => PAD.t + innerH - ((v - lo + span * 0.08) / (span * 1.16)) * innerH;
+  const x = i => PAD.l + (innerW / (points.length - 1)) * i;
+
+  const d = points.map((p, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${y(p.close).toFixed(1)}`).join(" ");
+  const area = `${d} L${x(points.length - 1).toFixed(1)},${PAD.t + innerH} L${x(0).toFixed(1)},${PAD.t + innerH} Z`;
+
+  let svg = `<svg viewBox="0 0 ${W} ${h}" role="img" aria-label="Share price history">`;
+  svg += `<path class="area-price" d="${area}"/><path class="line-price" d="${d}"/>`;
+  /* Label only the extremes and the ends — a monthly series has too many
+     points to label each. */
+  const hiIdx = closes.indexOf(hi), loIdx = closes.indexOf(lo);
+  for(const [i, anchor] of [[hiIdx, "middle"], [loIdx, "middle"]]){
+    svg += `<circle class="dot-price" cx="${x(i).toFixed(1)}" cy="${y(closes[i]).toFixed(1)}" r="2.4"/>`;
+    svg += `<text class="axis" x="${x(i).toFixed(1)}" y="${(y(closes[i]) + (i === hiIdx ? -5 : 11)).toFixed(1)}" text-anchor="${anchor}">${Math.round(closes[i])}</text>`;
+  }
+  svg += `<text class="axis" x="${PAD.l}" y="${h - 4}" text-anchor="start">${esc(points[0].date.slice(0, 7))}</text>`;
+  svg += `<text class="axis" x="${W - PAD.r}" y="${h - 4}" text-anchor="end">${esc(points.at(-1).date.slice(0, 7))}</text>`;
   return svg + `</svg>`;
 }
 
@@ -192,6 +222,38 @@ function render(a){
   show("qtrPanel", finTable(document.getElementById("qtrTable"), a.raw?.quarters, ["Sales", "Net Profit"]));
 }
 
+function renderPrice(p){
+  show("pricePanel", !!(p && p.ok));
+  if(!p || !p.ok) return;
+
+  const tiles = [
+    ["Price", p.price == null ? "—" : "₹" + groupIndian(Math.round(p.price))],
+    ["52 week", p.fiftyTwoWeekLow == null ? "—"
+      : `₹${groupIndian(Math.round(p.fiftyTwoWeekLow))} – ₹${groupIndian(Math.round(p.fiftyTwoWeekHigh))}`],
+    ["Change", p.changePct == null ? "—" : (p.changePct >= 0 ? "+" : "−") + Math.abs(p.changePct).toFixed(1) + "%"]
+  ];
+  if(p.cagr) tiles.push(["Annualised", (p.cagr.rate >= 0 ? "+" : "−") + Math.abs(p.cagr.rate * 100).toFixed(2) + "%"]);
+
+  document.getElementById("priceTiles").innerHTML = tiles
+    .map(([k, v]) => `<div><span>${k}</span><b>${esc(v)}</b></div>`).join("");
+  document.getElementById("priceChart").innerHTML = priceChart(p.points);
+  document.getElementById("priceNote").textContent =
+    `${p.exchange || "NSE"} · ${p.cagr ? p.cagr.years.toFixed(1) + " years" : "history"}`;
+}
+
+/* Price is a bonus, not a requirement — a failure here must not cost the
+   user the financials they came for. */
+async function loadPrice(code){
+  show("pricePanel", false);
+  try{
+    const res = await fetch(`${proxy()}/?url=${encodeURIComponent(chartUrl(code))}`);
+    if(!res.ok) return null;
+    const p = parseYahooChart(await res.text());
+    renderPrice(p);
+    return p;
+  } catch { return null; }
+}
+
 function setNotice(html, kind){
   document.getElementById("notice").innerHTML =
     html ? `<div class="notice ${kind || ""}">${html}</div>` : "";
@@ -242,6 +304,11 @@ async function lookup(){
       ? `Read <b>${esc(parsed.name || code)}</b>. Could not find: ${missing.join(", ")} — those panels are hidden rather than shown empty.`
       : `Read <b>${esc(parsed.name || code)}</b>.`,
       missing.length ? "warn" : "");
+
+    /* Financials come from Screener; the price series comes from Yahoo,
+       which is the only free source that gives one. Fetched after, so a
+       price failure never delays or blocks the statements. */
+    loadPrice(code);
   } catch(err){
     setNotice(`Could not fetch ${esc(code)}: ${esc(err.message || "network error")}.
       If the proxy URL is right, check it is deployed and that the Worker allowlist covers screener.in.`, "bad");

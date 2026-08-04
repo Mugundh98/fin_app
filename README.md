@@ -104,6 +104,7 @@ public/                     <- the entire deployed site, and only that
       dash.css              stat tiles, mix bar, editable rows
     stock/
       screener-parse.js     Screener page -> tables — pure, no DOM
+      yahoo.js              Yahoo chart JSON -> price series — pure, no DOM
       stock-engine.js       growth, margins, gearing, promoter trend — pure
       ui.js                 form building, state, SVG charts
       stock.css             ratio grid, charts, financial tables
@@ -119,6 +120,7 @@ test/                       <- never published
   dash/dash-engine.test.js           28 tests
   stock/screener-parse.test.js       18 tests
   stock/stock-engine.test.js         30 tests
+  stock/yahoo.test.js                20 tests
 worker/                     <- never published, deployed separately
   index.js                  allowlisted CORS proxy (Cloudflare Worker)
   wrangler.toml
@@ -383,13 +385,26 @@ even made. This was measured, not assumed:
 | --- | --- |
 | screener.in | blocked |
 | trendlyne.com | blocked |
-| Yahoo Finance | blocked |
+| Yahoo Finance | blocked (chart data reachable via the Worker) |
 | moneycontrol.com | allowed |
 
 MoneyControl is the exception and has a working JSON price feed, but its
 financials live in 1.2 MB HTML pages and its historical-chart endpoint returns
 403. Promoter holding is the real gap: it is an India-specific disclosure and
 no free API carries it, which is exactly why Screener is worth reading.
+
+**Yahoo is used for the price series and nothing else.** Its chart endpoint is
+open and gives five years of monthly OHLCV in rupees — the one thing Screener
+does not hand over cheaply, and the reason the analyser has a price chart at
+all. Its fundamentals endpoint (`quoteSummary`) answers `401 Invalid Crumb`:
+Yahoo put it behind a cookie-and-crumb handshake. That is an access control
+somebody deliberately added, and working around it is a different thing from
+reading a page served to anyone who asks, so the Worker allowlist covers
+`/v8/finance/chart/` only. Statements and promoter holding come from Screener.
+
+The price fetch runs after the financials and its failures are swallowed —
+a delisted ticker or a Yahoo outage hides the price panel and costs nothing
+else. There are tests for both paths.
 
 So `worker/` holds a small Cloudflare Worker that fetches server-side, where
 the cross-origin rule does not apply, and returns the page with permissive

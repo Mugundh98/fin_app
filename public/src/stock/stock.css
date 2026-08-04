@@ -95,3 +95,8 @@
 .trend.rising{color:var(--ledger)}
 .trend.falling{color:var(--vermilion)}
 .trend.steady{color:var(--ink-faint)}
+
+/* ---------- price series ---------- */
+.chart .line-price{stroke:var(--sales);stroke-width:1.6;fill:none}
+.chart .area-price{fill:var(--sales);opacity:.09}
+.chart .dot-price{fill:var(--sales)}
