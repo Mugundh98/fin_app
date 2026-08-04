@@ -180,12 +180,17 @@ function render(a){
   document.getElementById("ratios").innerHTML = rat.slice(0, 12)
     .map(r => `<div><span>${esc(r.label)}</span><b>${esc(r.raw)}</b></div>`).join("");
 
+  const ml = document.getElementById("marginLabel");
+  if(ml) ml.textContent = a.marginLabel;
+
   const hasChart = a.sales.filter(p => p.value != null).length >= 2;
   show("chartPanel", hasChart);
   if(hasChart){
     document.getElementById("chart").innerHTML =
       combinedChart(a.sales, a.netProfit, a.operatingMargin);
-    document.getElementById("chartNote").textContent = "₹ Cr, by year";
+    document.getElementById("chartNote").textContent = a.financing
+      ? "₹ Cr — margin is struck after interest, as a lender reports it"
+      : "₹ Cr, by year";
   }
 
   show("growthPanel", !!(a.growth.sales3 || a.growth.profit3));
@@ -254,6 +259,19 @@ async function loadPrice(code){
   } catch { return null; }
 }
 
+/* Wipe every panel. Called before each lookup so a failed fetch can never
+   leave the previous company's figures on screen under a new ticker — the
+   worst kind of wrong, because it looks entirely convincing. */
+function clearResults(){
+  state.analysis = null;
+  for(const id of ["pricePanel","ratioPanel","chartPanel","growthPanel",
+                   "promoPanel","shPanel","pnlPanel","bsPanel","qtrPanel"]){
+    show(id, false);
+  }
+  document.getElementById("vTitle").textContent = "Nothing loaded";
+  document.getElementById("vSaving").textContent = "";
+}
+
 function setNotice(html, kind){
   document.getElementById("notice").innerHTML =
     html ? `<div class="notice ${kind || ""}">${html}</div>` : "";
@@ -278,6 +296,7 @@ async function lookup(){
 
   state.busy = true;
   document.getElementById("go").disabled = true;
+  clearResults();
   setNotice(`Fetching <b>${esc(code)}</b>…`);
 
   try{

@@ -443,6 +443,25 @@ xlsx and pdf readers: that way the fragile part runs under `node --test`
 against fixture markup, so a change in Screener's HTML shows up as a failing
 test rather than a blank page.
 
+### Banks and NBFCs report different line names
+
+Screener names the same lines differently by industry, so the engine takes the
+first label that exists:
+
+| Manufacturer | Lender |
+| --- | --- |
+| Sales | Revenue |
+| Operating Profit | Financing Profit |
+| Borrowings | Borrowing |
+
+Two consequences are handled rather than ignored. **Deposits are not counted as
+borrowing** — for a bank they are the business, not leverage, so gearing is
+struck on borrowings alone. And **a lender's margin is struck after interest
+expense**, so it is routinely negative and is not comparable to a
+manufacturer's operating margin; the analyser carries the source's own name for
+it, "Financing margin", and says so under the chart rather than flattening both
+into one label.
+
 ### One arithmetic rule worth knowing
 
 Growth is compound annual growth between the two years actually used, and both

@@ -10,3 +10,6 @@ node_modules/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Wrangler writes account id and email into here on deploy.
+.wrangler/
