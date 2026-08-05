@@ -10,8 +10,16 @@
    buy, keep or surrender a policy. */
 
 export const ASSUMPTIONS = {
-  /* GST on traditional life premiums: higher in year one, lower after. */
+  /* GST on traditional life premiums: higher in year one, lower after.
+     A pure term plan is taxed differently — 18%, flat — so the two routes
+     cannot share one rate. */
   gst: { firstYear: .045, subsequent: .0225 },
+  termGst: .18,
+
+  /* Only used to seed the comparison form; the user is expected to put in a
+     real quote and their own return assumption. */
+  defaultTermPerThousand: 3,
+  defaultIndexReturn: .12,
 
   /* Simple reversionary bonus is quoted per ₹1,000 of sum assured per year,
      and accrues on the SUM ASSURED — it does not compound. */
@@ -127,6 +135,80 @@ function scenarioFor(p, perThousand, key){
     gain: maturity - totalPaid,
     multiple: totalPaid > 0 ? maturity / totalPaid : 0,
     irr: rate
+  };
+}
+
+/* ============================================================
+   THE OTHER ROUTE — pure term cover, and the difference invested
+   ============================================================ */
+
+/* Prices the same cover, for the same years, out of the same pocket.
+
+   Each year the endowment premium would have left the account, this instead
+   pays a term premium and invests what is left over. The out-of-pocket cost
+   is identical every single year by construction — that is the only way the
+   comparison is fair, and there is a test asserting it.
+
+   Once a limited-pay endowment stops collecting, the term plan still has
+   years to run, so its premium is drawn from the invested pot. That keeps
+   out-of-pocket matched at zero rather than quietly ignoring a real cost.
+
+   This compares an assumption against a contract. The endowment's sum
+   assured is promised; the index return is not. Both live in the output so
+   the caller can say so. */
+export function compareTermPlusIndex(p, opts = {}){
+  const termPremium = Math.max(0, num(opts.termPremium));
+  const indexReturn = Math.max(0, num(opts.indexReturn, ASSUMPTIONS.defaultIndexReturn));
+  const termOutlay = termPremium * (1 + (p.addGst ? ASSUMPTIONS.termGst : 0));
+
+  const rows = [];
+  let corpus = 0, invested = 0, endowmentOutlayTotal = 0, termOutlayTotal = 0;
+  let crossover = null, everNegative = false;
+
+  for(let y = 1; y <= p.policyTerm; y++){
+    const endowmentOutlay = premiumInYear(y, p.annualPremium, p.premiumTerm, p.addGst);
+    const diff = endowmentOutlay - termOutlay;
+
+    corpus = (corpus + diff) * (1 + indexReturn);
+    if(corpus < 0) everNegative = true;
+
+    invested += diff;
+    endowmentOutlayTotal += endowmentOutlay;
+    termOutlayTotal += termOutlay;
+
+    const accruedBonus = (p.sumAssured / 1000) * p.bonusPerThousand * y;
+    const endowmentAccrued = p.sumAssured + accruedBonus;
+
+    if(crossover === null && corpus > endowmentAccrued) crossover = y;
+
+    rows.push({
+      year: y,
+      endowmentOutlay, termOutlay, invested: diff,
+      corpus,
+      endowmentAccrued,
+      /* On death: the endowment pays cover plus bonus so far. The other route
+         pays the term cover AND leaves the invested pot behind. */
+      endowmentDeath: endowmentAccrued,
+      termDeath: p.sumAssured + Math.max(0, corpus)
+    });
+  }
+
+  const endowmentMaturity = p.sumAssured
+    + (p.sumAssured / 1000) * p.bonusPerThousand * p.policyTerm
+    + (p.sumAssured / 1000) * p.fabPerThousand;
+
+  return {
+    termPremium, termOutlay, indexReturn,
+    rows,
+    corpus,
+    endowmentMaturity,
+    gap: corpus - endowmentMaturity,
+    ratio: endowmentMaturity > 0 ? corpus / endowmentMaturity : 0,
+    invested, endowmentOutlayTotal, termOutlayTotal,
+    crossover, everNegative,
+    /* True when the term premium alone costs more than the endowment did,
+       so there is nothing left to invest. */
+    noHeadroom: termOutlay >= p.annualPremium && p.annualPremium > 0
   };
 }
 

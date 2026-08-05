@@ -26,8 +26,9 @@ by hand — and reports the equity / debt / gold split against a target you set,
 with the trades that would close the gap.
 
 **PolicyCheck** works out what an endowment policy actually returns, given the
-premiums, the bonuses and when each rupee moves. Endowment plans only for now;
-term, money-back and ULIP are stubbed in the tab strip but not built.
+premiums, the bonuses and when each rupee moves, and sets it against buying the
+same cover as pure term and investing the difference. Endowment plans only for
+now; term, money-back and ULIP are stubbed in the tab strip but not built.
 
 **FolioView** is the dashboard: total value, asset-class mix, largest holdings,
 concentration and gain, read out of a **PDF**, CSV or Excel statement, or typed
@@ -115,7 +116,7 @@ test/                       <- never published
   invest/invest-engine.test.js       56 tests
   portfolio/portfolio-engine.test.js 40 tests
   portfolio/xlsx.test.js             26 tests
-  insure/insure-engine.test.js       38 tests
+  insure/insure-engine.test.js       53 tests
   shared/pdf.test.js                 35 tests
   dash/dash-engine.test.js           28 tests
   stock/screener-parse.test.js       18 tests
@@ -326,6 +327,32 @@ Two facts the tests pin down, both easy to get wrong by intuition:
 
 GST is optional (4.5% first year, 2.25% after) and off by default, since most
 people quote the premium they actually pay.
+
+### Against term plus an index fund
+
+The same cover, bought as pure term, with whatever is left of the premium put
+into an index fund.
+
+**The comparison is only worth anything if the outlay matches**, so it is
+constructed that way: each year the endowment premium would have left the
+account, the other route pays a term premium and invests the remainder. Out of
+pocket is identical every year, and there is a test asserting it — otherwise
+the result is just an argument for spending more.
+
+Three details that are easy to get wrong and are handled:
+
+- **Term attracts 18% GST**, not the 4.5%/2.25% a traditional plan pays. The
+  two routes cannot share one rate.
+- **When a limited-pay endowment stops collecting**, the term plan still has
+  years to run, so its premium is drawn from the invested pot. Ignoring that
+  would hand the other route a free ride.
+- **The endowment line on the chart is what has accrued** — sum assured plus
+  bonus to date — not a surrender value, which is usually far lower. The
+  caveat under the chart says so.
+
+This weighs an assumption against a contract, and the page says that where it
+cannot be missed: the sum assured is promised, the assumed return is not. No
+recommendation is offered either way, and neither line is adjusted for tax.
 
 Not handled: surrender and paid-up values, policy loans, riders, money-back
 survival benefits, ULIPs, and the 80C / 10(10D) tax treatment. Mortality

@@ -1,16 +1,20 @@
-import { ASSUMPTIONS, computePolicy } from './insure-engine.js';
+import { ASSUMPTIONS, computePolicy, compareTermPlusIndex } from './insure-engine.js';
 import { drawGuilloche } from '../shared/guilloche.js';
+import { groupIndian } from '../shared/format.js';
 
 /* ============================================================
    FORMATTING
    ============================================================ */
-const fmt = n => "₹" + Math.round(Math.abs(n)).toLocaleString("en-IN");
+const fmt = n => "₹" + groupIndian(Math.abs(n));
 const fmtSigned = n => (n < 0 ? "−" : "") + fmt(n);
 const compact = n => {
   const a = Math.abs(n);
-  if(a >= 10000000) return "₹" + (n/10000000).toFixed(2).replace(/\.00$/,"") + " Cr";
-  if(a >= 100000)   return "₹" + (n/100000).toFixed(2).replace(/\.00$/,"") + " L";
-  return fmt(n);
+  /* Sign goes before the rupee symbol, not between it and the digits —
+     "₹-8.07 L" reads as a typo. */
+  const sign = n < 0 ? "−" : "";
+  if(a >= 10000000) return sign + "₹" + (a/10000000).toFixed(2).replace(/\.00$/,"") + " Cr";
+  if(a >= 100000)   return sign + "₹" + (a/100000).toFixed(2).replace(/\.00$/,"") + " L";
+  return sign + fmt(a);
 };
 /* Two decimals: at these rates the second one is the difference between
    plans, and rounding it away would hide that. */
@@ -26,11 +30,13 @@ const state = {
   premiumTerm: 20,
   bonusPerThousand: ASSUMPTIONS.defaultBonusPerThousand,
   fabPerThousand: 0,
-  addGst: false
+  addGst: false,
+  termPremium: 3000,
+  indexReturnPct: ASSUMPTIONS.defaultIndexReturn * 100
 };
 
 const FIELDS = ["sumAssured","annualPremium","policyTerm","premiumTerm",
-                "bonusPerThousand","fabPerThousand"];
+                "bonusPerThousand","fabPerThousand","termPremium","indexReturnPct"];
 
 /* ============================================================
    RENDER
@@ -138,6 +144,86 @@ function renderSticky(p){
   document.getElementById("sbIrr").textContent = rate(p.declared.irr);
 }
 
+/* Two accumulation paths on one axis. The endowment line is what has ACCRUED
+   — sum assured plus bonus to date — not a surrender value, which is far
+   lower; the caveat under the chart says so. */
+const CW = 380, CH = 160, CP = { l: 4, r: 4, t: 10, b: 20 };
+
+function comparisonChart(c){
+  const rows = c.rows;
+  if(rows.length < 2) return `<p class="hint">Not enough years to chart.</p>`;
+
+  const maxV = Math.max(...rows.map(r => Math.max(r.endowmentAccrued, r.corpus)), 1);
+  const minV = Math.min(0, ...rows.map(r => r.corpus));
+  const innerW = CW - CP.l - CP.r, innerH = CH - CP.t - CP.b;
+  const y = v => CP.t + innerH - ((v - minV) / (maxV - minV)) * innerH;
+  const x = i => CP.l + (innerW / (rows.length - 1)) * i;
+
+  const path = key => rows.map((r, i) =>
+    `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${y(r[key]).toFixed(1)}`).join(" ");
+
+  let svg = `<svg viewBox="0 0 ${CW} ${CH}" role="img" aria-label="Endowment accrued value against term plus index fund">`;
+  for(let i = 0; i <= 3; i++){
+    const gy = CP.t + (innerH / 3) * i;
+    svg += `<line class="grid" x1="${CP.l}" y1="${gy.toFixed(1)}" x2="${CW - CP.r}" y2="${gy.toFixed(1)}"/>`;
+  }
+  const idxPath = path("corpus");
+  svg += `<path class="area-index" d="${idxPath} L${x(rows.length - 1).toFixed(1)},${y(Math.max(0, minV)).toFixed(1)} L${x(0).toFixed(1)},${y(Math.max(0, minV)).toFixed(1)} Z"/>`;
+  svg += `<path class="line-endow" d="${path("endowmentAccrued")}"/>`;
+  svg += `<path class="line-index" d="${idxPath}"/>`;
+
+  if(c.crossover){
+    const cx = x(c.crossover - 1);
+    svg += `<line class="cross" x1="${cx.toFixed(1)}" y1="${CP.t}" x2="${cx.toFixed(1)}" y2="${CP.t + innerH}"/>`;
+    svg += `<text class="axis" x="${cx.toFixed(1)}" y="${CP.t - 2}" text-anchor="middle">year ${c.crossover}</text>`;
+  }
+  svg += `<text class="axis" x="${CP.l}" y="${CH - 6}" text-anchor="start">year 1</text>`;
+  svg += `<text class="axis" x="${CW - CP.r}" y="${CH - 6}" text-anchor="end">year ${rows.length}</text>`;
+  return svg + `</svg>`;
+}
+
+function renderComparison(p){
+  const c = compareTermPlusIndex(p, {
+    termPremium: state.termPremium,
+    indexReturn: state.indexReturnPct / 100
+  });
+
+  document.getElementById("coverEcho").textContent = groupIndian(p.sumAssured);
+
+  const ahead = c.gap >= 0;
+  document.getElementById("cmpTiles").innerHTML = [
+    ["Endowment", compact(c.endowmentMaturity), ""],
+    ["Term + index", compact(c.corpus), ahead ? "ahead" : "behind"],
+    [ahead ? "Ahead by" : "Behind by", compact(Math.abs(c.gap)), ahead ? "ahead" : "behind"]
+  ].map(([k, v, cls]) => `<div class="${cls}"><span>${k}</span><b>${v}</b></div>`).join("");
+
+  document.getElementById("cmpNote").textContent =
+    `${state.indexReturnPct}% assumed · same outlay`;
+  document.getElementById("cmpChart").innerHTML = comparisonChart(c);
+
+  const last = c.rows[c.rows.length - 1];
+  document.getElementById("cmpBody").innerHTML = [
+    `<tr class="major"><td>Out of pocket, either route</td><td class="n">${fmt(c.endowmentOutlayTotal)}</td></tr>`,
+    `<tr><td class="sub">of which term cover</td><td class="n">${fmt(c.termOutlayTotal)}</td></tr>`,
+    `<tr><td class="sub">of which invested</td><td class="n">${fmt(c.invested)}</td></tr>`,
+    `<tr class="major"><td>On death in the final year</td><td class="n"></td></tr>`,
+    `<tr><td class="sub">endowment pays</td><td class="n">${fmt(last.endowmentDeath)}</td></tr>`,
+    `<tr><td class="sub">term + fund pays</td><td class="n">${fmt(last.termDeath)}</td></tr>`,
+    `<tr class="total"><td>At maturity, difference</td><td class="n">${(ahead ? "+" : "−") + fmt(Math.abs(c.gap))}</td></tr>`
+  ].join("");
+
+  const bits = [];
+  if(c.noHeadroom){
+    bits.push(`The term premium you entered is <b>at or above</b> the endowment premium, so there is nothing left to invest — check the quote.`);
+  } else if(c.crossover){
+    bits.push(`The invested pot passes the endowment's accrued value in <b>year ${c.crossover}</b>.`);
+  } else {
+    bits.push(`At <b>${state.indexReturnPct}%</b> the invested pot never overtakes the endowment.`);
+  }
+  bits.push(`This weighs an <b>assumption against a contract</b>: the sum assured is promised, the ${state.indexReturnPct}% is not. The endowment line is what has accrued, not what surrendering early would pay — that is usually far less. Neither line is adjusted for tax.`);
+  document.getElementById("cmpCaveat").innerHTML = bits.join(" ");
+}
+
 function recalc(){
   const p = computePolicy(state);
   /* The engine clamps the paying term to the policy term; reflect that back
@@ -151,6 +237,7 @@ function recalc(){
   renderMoney(p);
   renderScenarios(p);
   renderCover(p);
+  renderComparison(p);
   renderSticky(p);
 }
 
