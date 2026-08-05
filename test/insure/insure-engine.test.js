@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   ASSUMPTIONS, accruedBonus, finalBonus, premiumInYear,
-  irr, schedule, computePolicy
+  irr, schedule, computePolicy, compareTermPlusIndex
 } from "../../public/src/insure/insure-engine.js";
 
 const close = (a, b, tol = 1e-6, msg) =>
@@ -323,4 +323,116 @@ test("a policy with no premium reports no return rather than infinity", () => {
 test("cover multiple states how much cover each premium rupee buys", () => {
   const p = computePolicy(base);
   close(p.coverMultiple, 20);                    // ₹10L cover for ₹50k a year
+});
+
+/* ------------------------------------------------------------------
+   Term cover plus an index fund — the other route
+   ------------------------------------------------------------------ */
+
+const cmp = (over = {}, opts = {}) =>
+  compareTermPlusIndex(computePolicy({ ...base, ...over }),
+    { termPremium: 3000, indexReturn: .12, ...opts });
+
+test("the same money leaves your pocket every year, both routes", () => {
+  /* This is the whole basis of the comparison. If it does not hold, the
+     result is just an argument for spending more. */
+  const c = cmp();
+  for(const r of c.rows){
+    close(r.termOutlay + r.invested, r.endowmentOutlay, 1e-9, `year ${r.year}`);
+  }
+  close(c.termOutlayTotal + c.invested, c.endowmentOutlayTotal, 1e-6);
+});
+
+test("the leftover is the endowment premium less the term premium", () => {
+  const c = cmp();
+  close(c.rows[0].invested, 50000 - 3000, 1e-9);
+});
+
+test("the corpus compounds at the return given", () => {
+  const c = cmp({ policyTerm: 2, premiumTerm: 2 }, { indexReturn: .10 });
+  const d = 50000 - 3000;
+  close(c.rows[0].corpus, d * 1.1, 1e-6);
+  close(c.rows[1].corpus, (d * 1.1 + d) * 1.1, 1e-6);
+});
+
+test("a zero return leaves exactly what was put in", () => {
+  const c = cmp({}, { indexReturn: 0 });
+  close(c.corpus, (50000 - 3000) * 20, 1e-6);
+});
+
+test("term GST is 18%, not the traditional-plan rate", () => {
+  const withGst = cmp({ addGst: true });
+  close(withGst.termOutlay, 3000 * 1.18, 1e-9);
+  close(cmp({ addGst: false }).termOutlay, 3000, 1e-9);
+});
+
+test("after a limited-pay endowment stops, the term premium comes out of the pot", () => {
+  const c = cmp({ premiumTerm: 10 });
+  const year11 = c.rows[10];
+  assert.equal(year11.endowmentOutlay, 0);
+  close(year11.invested, -year11.termOutlay, 1e-9);
+  /* out of pocket is still matched — at zero */
+  close(year11.termOutlay + year11.invested, 0, 1e-9);
+});
+
+test("the corpus still grows after the premiums stop", () => {
+  const c = cmp({ premiumTerm: 10 });
+  assert.ok(c.rows[19].corpus > c.rows[10].corpus);
+});
+
+test("death benefit on the other route is cover plus the pot", () => {
+  const c = cmp();
+  const r = c.rows[9];
+  close(r.termDeath, 1000000 + r.corpus, 1e-9);
+  close(r.endowmentDeath, 1000000 + 900000 * (10 / 20), 1e-6);
+});
+
+test("the crossover year is the first the pot beats the accrued policy", () => {
+  const c = cmp();
+  assert.ok(c.crossover > 0 && c.crossover <= 20);
+  const at = c.rows[c.crossover - 1];
+  assert.ok(at.corpus > at.endowmentAccrued);
+  if(c.crossover > 1){
+    const before = c.rows[c.crossover - 2];
+    assert.ok(before.corpus <= before.endowmentAccrued);
+  }
+});
+
+test("a return low enough loses to the endowment, and says so", () => {
+  const c = cmp({}, { indexReturn: .01 });
+  assert.ok(c.corpus < c.endowmentMaturity);
+  assert.ok(c.gap < 0);
+  assert.equal(c.crossover, null);
+});
+
+test("the endowment maturity used is the same one the policy reports", () => {
+  const p = computePolicy(base);
+  const c = compareTermPlusIndex(p, { termPremium: 3000, indexReturn: .12 });
+  close(c.endowmentMaturity, p.declared.maturity, 1e-6);
+});
+
+test("a final additional bonus counts on the endowment side", () => {
+  const p = computePolicy({ ...base, fabPerThousand: 100 });
+  const c = compareTermPlusIndex(p, { termPremium: 3000, indexReturn: .12 });
+  close(c.endowmentMaturity, p.declared.maturity, 1e-6);
+});
+
+test("a term premium above the endowment premium leaves no headroom, and is flagged", () => {
+  const c = cmp({}, { termPremium: 60000 });
+  assert.equal(c.noHeadroom, true);
+  assert.equal(c.everNegative, true);
+  assert.ok(c.corpus < 0);
+});
+
+test("comparison inputs are clamped, never NaN", () => {
+  const c = cmp({}, { termPremium: -100, indexReturn: NaN });
+  assert.equal(c.termPremium, 0);
+  assert.equal(c.indexReturn, ASSUMPTIONS.defaultIndexReturn);
+  for(const r of c.rows) assert.ok(Number.isFinite(r.corpus));
+});
+
+test("a zero-premium policy does not divide by zero", () => {
+  const c = cmp({ annualPremium: 0 }, { termPremium: 0 });
+  assert.ok(Number.isFinite(c.corpus));
+  assert.equal(c.noHeadroom, false);
 });

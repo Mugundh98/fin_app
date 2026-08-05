@@ -56,3 +56,38 @@ details.years summary:focus-visible{outline:2px solid var(--focus);outline-offse
 .years-scroll{max-height:320px;overflow-y:auto}
 .years-scroll table{width:100%}
 .years-scroll thead th{position:sticky;top:0;background:#fff;z-index:1}
+
+/* ---------- endowment against term plus an index fund ---------- */
+:root{ --endow:#B32B32; --index:#0E6049; }
+
+.cmp-tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--rule-soft)}
+.cmp-tiles div{background:var(--card);padding:12px 13px}
+.cmp-tiles span{
+  display:block;font-size:10px;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--ink-faint);font-weight:600;margin-bottom:2px;
+}
+.cmp-tiles b{font-family:"IBM Plex Mono",monospace;font-size:16px;font-weight:500;color:var(--ink)}
+.cmp-tiles div.ahead b{color:var(--index)}
+.cmp-tiles div.behind b{color:var(--endow)}
+@media(max-width:560px){.cmp-tiles{grid-template-columns:1fr 1fr}}
+
+.chart{padding:14px 16px 4px}
+.chart svg{width:100%;height:auto;display:block;overflow:visible}
+.chart .grid{stroke:var(--rule-soft);stroke-width:1}
+.chart .axis{fill:var(--ink-faint);font-size:9px;font-family:"IBM Plex Sans",sans-serif}
+.chart .line-endow{stroke:var(--endow);stroke-width:1.8;fill:none}
+.chart .line-index{stroke:var(--index);stroke-width:1.8;fill:none}
+.chart .area-index{fill:var(--index);opacity:.07}
+.chart .cross{stroke:var(--ink-faint);stroke-width:1;stroke-dasharray:2 2}
+
+.cmp-legend{display:flex;flex-wrap:wrap;gap:14px;padding:2px 16px 12px;font-size:11.5px;color:var(--ink-soft)}
+.cmp-legend span{display:flex;align-items:center;gap:5px}
+.cmp-legend i{width:9px;height:9px;border-radius:2px;display:block}
+.cmp-legend i.endow{background:var(--endow)}
+.cmp-legend i.index{background:var(--index)}
+
+.cmp-caveat{
+  margin:0;padding:11px 16px 14px;font-size:11.5px;color:var(--ink-faint);
+  line-height:1.5;border-top:1px solid var(--rule-soft);
+}
+.cmp-caveat b{color:var(--ink-soft)}

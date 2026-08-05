@@ -85,6 +85,26 @@
         <p class="hint">Leave this off if the premium you entered above is the full amount you actually pay.</p>
       </div>
     </section>
+
+    <section class="panel">
+      <h2>The other route <em>Term cover, difference invested</em></h2>
+      <div class="panel-body">
+        <p class="hint" style="margin:0 0 10px">
+          The same cover, bought as a pure term plan, with whatever is left of the premium put into an
+          index fund. <b>The same amount leaves your pocket each year either way</b> — only the split
+          between cover and savings changes.
+        </p>
+        <div class="row"><label for="termPremium">Term plan premium<small>A year, for ₹<span id="coverEcho">10,00,000</span> of cover over the same term. Use a real quote</small></label>
+          <input class="inp" type="number" id="termPremium" min="0" step="any"></div>
+        <div class="row"><label for="indexReturnPct">Index fund return<small>Assumed, a year. Not guaranteed, unlike the sum assured</small></label>
+          <input class="inp" type="number" id="indexReturnPct" min="0" step="any"></div>
+        <p class="hint">
+          Term premiums run roughly ₹3 per ₹1,000 of cover a year for a healthy thirty-year-old, and rise
+          steeply with age and term — the figure above is only a placeholder. Term attracts <b>18% GST</b>,
+          not the lower rate a traditional plan pays, and that is applied when GST is switched on above.
+        </p>
+      </div>
+    </section>
   </div>
 
   <aside class="results" aria-live="polite">
@@ -102,6 +122,18 @@
         <div class="mix-legend" id="mixLegend"></div>
         <p id="mixNote"></p>
       </div>
+    </div>
+
+    <div class="panel" id="cmpPanel">
+      <h2>Against term plus an index fund <em id="cmpNote"></em></h2>
+      <div class="cmp-tiles" id="cmpTiles"></div>
+      <div class="chart" id="cmpChart"></div>
+      <div class="cmp-legend">
+        <span><i class="endow"></i>Endowment, accrued</span>
+        <span><i class="index"></i>Term + index fund</span>
+      </div>
+      <table class="ledger-tbl"><tbody id="cmpBody"></tbody></table>
+      <p class="cmp-caveat" id="cmpCaveat"></p>
     </div>
 
     <div class="panel">
