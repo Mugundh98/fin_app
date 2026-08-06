@@ -456,8 +456,8 @@ Volume is the thing most likely to get a scraper blocked, and a company's
 financials are restated **once a quarter**. Re-reading the page on every
 lookup is pure waste.
 
-Bind a KV namespace and the Worker caches bodies for seven days (Screener) and
-an hour (Yahoo prices, which actually move):
+Bind a KV namespace and the Worker caches bodies for a day (Screener) and an
+hour (Yahoo prices, which actually move):
 
 ```bash
 npx wrangler kv namespace create CACHE
@@ -467,10 +467,16 @@ Paste the id into `wrangler.toml` under `[[kv_namespaces]]`. Without the
 binding the Worker still runs — it just goes to the origin every time and
 reports `x-cache: BYPASS`.
 
-Because a cached page can be days old, the Worker returns `x-cache` and
-`x-cache-age`, and the analyser says so: *"Served from the proxy cache,
-fetched 3 days ago."* The financials will not have changed; the price strip
-will be that stale. Append `&fresh=1` to bypass the cache for one request.
+**A day, not longer, and the reason is worth stating.** The financials on that
+page are restated once a quarter, so a week-long cache would cost nothing
+there — but the same page also carries the **ratio strip**, and a week-old
+Current Price, P/E and Market Cap sitting at the top of the analyser is worse
+than the saved requests are worth. A day still collapses repeated lookups to
+one origin hit, which was the point.
+
+The Worker returns `x-cache` and `x-cache-age` either way, and the analyser
+says so: *"Served from the proxy cache, fetched 4 hours ago."* Append
+`&fresh=1` to bypass the cache for a single request.
 
 The upstream request also sends an ordinary browser `User-Agent`. Sites vary
 their markup — or refuse outright — for clients they do not recognise, and an

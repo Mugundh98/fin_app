@@ -13,13 +13,18 @@
  *     npx wrangler deploy
  */
 
-/* Per-host settings. `ttl` is how long a body stays in KV: a company's
-   financials are restated once a quarter, so re-reading the page on every
-   lookup is pure waste and the main thing that would get the proxy blocked.
-   Prices move constantly, hence the short one for Yahoo. */
+/* Per-host settings. `ttl` is how long a body stays in KV.
+
+   A day for Screener. The financials on that page are restated once a
+   quarter, so a longer cache would cost nothing there — but the same page
+   carries the ratio strip, and a week-old Current Price, P/E and Market Cap
+   at the top of the analyser is worse than the saved requests are worth. A
+   day still collapses repeated lookups to one origin hit, which is the point.
+
+   Prices move constantly, hence the much shorter one for Yahoo. */
 const ALLOW = [
-  { host: "www.screener.in",           path: /^\/company\/[A-Za-z0-9&._-]+\/(consolidated\/)?$/, ttl: 604800 },
-  { host: "screener.in",               path: /^\/company\/[A-Za-z0-9&._-]+\/(consolidated\/)?$/, ttl: 604800 },
+  { host: "www.screener.in",           path: /^\/company\/[A-Za-z0-9&._-]+\/(consolidated\/)?$/, ttl: 86400 },
+  { host: "screener.in",               path: /^\/company\/[A-Za-z0-9&._-]+\/(consolidated\/)?$/, ttl: 86400 },
   { host: "priceapi.moneycontrol.com", path: /^\/pricefeed\/[a-z]+\/equitycash\/[A-Za-z0-9]+$/,   ttl: 900 },
   /* Yahoo's chart endpoint is open and gives price history, which nothing
      else free does — MoneyControl's equivalent returns 403. Its fundamentals

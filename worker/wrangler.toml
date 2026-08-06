@@ -10,9 +10,9 @@ compatibility_date = "2026-01-01"
 #
 # The Worker runs fine without this binding; it just goes to the origin every
 # time and reports x-cache: BYPASS.
-# [[kv_namespaces]]
-# binding = "CACHE"
-# id = "paste-the-id-wrangler-prints"
+[[kv_namespaces]]
+binding = "CACHE"
+id = "fb38a317ba87472899639ceb815201c1"
 
 # [vars]
 # Pin the proxy to your own site so another page cannot call it from a
@@ -21,8 +21,8 @@ compatibility_date = "2026-01-01"
 # ALLOWED_ORIGIN = "https://fin-risk-app.kaushalarmy4.workers.dev"
 #
 # Override the cache lifetime in seconds for every host at once. Left unset,
-# each host uses its own default: 7 days for Screener, 1 hour for Yahoo.
-# CACHE_TTL = "604800"
+# each host uses its own default: 1 day for Screener, 1 hour for Yahoo.
+# CACHE_TTL = "86400"
 #
 # Override the browser string sent upstream.
 # USER_AGENT = "Mozilla/5.0 ..."
