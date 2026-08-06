@@ -1,4 +1,4 @@
-import { parseScreener } from './screener-parse.js';
+import { parseScreener, parseSearch, SEARCH_URL } from './screener-parse.js';
 import { analyseStock } from './stock-engine.js';
 import { chartUrl, parseYahooChart } from './yahoo.js';
 import { drawGuilloche } from '../shared/guilloche.js';
@@ -305,6 +305,34 @@ async function fetchBasis(code, basis){
   return parsed;
 }
 
+/* Ask Screener what it thinks the user meant. Failures are swallowed — a
+   suggestion is a courtesy, and a search outage must not turn into a second
+   error message on top of the first. */
+async function searchCompanies(query){
+  try{
+    const res = await fetch(`${proxy()}/?url=${encodeURIComponent(SEARCH_URL + encodeURIComponent(query))}`);
+    if(!res.ok) return [];
+    return parseSearch(await res.text()).slice(0, 6);
+  } catch { return []; }
+}
+
+/* Offer the matches as buttons rather than printing a code to retype. */
+function renderSuggestions(matches, typed){
+  if(!matches.length){
+    setNotice(`No company on Screener matches <b>${esc(typed)}</b>. Check the code on screener.in — the analyser uses the same one their URLs do.`, "bad");
+    return;
+  }
+  const list = matches.map(m =>
+    `<button type="button" class="suggest" data-code="${esc(m.code)}">${esc(m.name)} <span>${esc(m.code)}</span></button>`
+  ).join("");
+  setNotice(`<b>${esc(typed)}</b> is not a code Screener knows. Did you mean:</p><div class="suggests">${list}</div><p style="margin:0">`, "warn");
+
+  document.querySelectorAll("[data-code]").forEach(b => b.addEventListener("click", () => {
+    document.getElementById("ticker").value = b.dataset.code;
+    lookup();
+  }));
+}
+
 function describeAge(seconds){
   if(!seconds || seconds < 90) return "just now";
   const m = Math.round(seconds / 60);
@@ -329,6 +357,15 @@ async function lookup(){
   if(!proxy()){
     document.getElementById("setup").open = true;
     return setNotice("No proxy set. Screener blocks direct reads from other sites, so deploy the Worker in <code>worker/</code> and paste its URL below.", "warn");
+  }
+
+  /* A ticker never contains a space, so anything that does is a company name
+     and should go straight to search rather than being tried as a URL. */
+  if(/\s/.test(code)){
+    clearResults();
+    setNotice(`Searching for <b>${esc(code)}</b>…`);
+    renderSuggestions(await searchCompanies(code), code);
+    return;
   }
 
   state.busy = true;
@@ -382,8 +419,16 @@ async function lookup(){
        price failure never delays or blocks the statements. */
     loadPrice(code);
   } catch(err){
-    setNotice(`Could not fetch ${esc(code)}: ${esc(err.message || "network error")}.
-      If the proxy URL is right, check it is deployed and that the Worker allowlist covers screener.in.`, "bad");
+    const msg = String(err.message || "network error");
+    /* A 404 from Screener means the code does not exist — nothing to do with
+       the proxy. Sending someone to check their Worker deployment over a
+       mistyped ticker wastes their time. */
+    if(/answered 404/.test(msg)){
+      renderSuggestions(await searchCompanies(code), code);
+    } else {
+      setNotice(`Could not fetch ${esc(code)}: ${esc(msg)}.
+        If the proxy URL is right, check it is deployed and that the Worker allowlist covers screener.in.`, "bad");
+    }
   } finally {
     state.busy = false;
     document.getElementById("go").disabled = false;

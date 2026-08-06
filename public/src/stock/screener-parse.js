@@ -141,6 +141,30 @@ export function parseScreener(html){
   return parsed;
 }
 
+/* Screener's own search, which is the only reliable way to turn "lic housing"
+   or a half-remembered ticker into the code its URLs actually use. The result
+   carries the canonical path, so it also says whether a consolidated page
+   exists — LICHSG is a 404, LICHSGFIN is the company. */
+export const SEARCH_URL = "https://www.screener.in/api/company/search/?q=";
+
+export function parseSearch(payload){
+  let list = payload;
+  if(typeof payload === "string"){
+    try { list = JSON.parse(payload); } catch { return []; }
+  }
+  if(!Array.isArray(list)) return [];
+
+  return list.map(item => {
+    const m = /^\/company\/([^/]+)\/(consolidated\/)?$/.exec(String(item?.url ?? ""));
+    if(!m) return null;
+    return {
+      name: String(item?.name ?? "").trim() || m[1],
+      code: m[1],
+      consolidated: !!m[2]
+    };
+  }).filter(Boolean);
+}
+
 /* A table is only usable if it carries NUMBERS, not merely row labels.
 
    Screener serves /consolidated/ for every company, including the many with

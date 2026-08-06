@@ -119,7 +119,7 @@ test/                       <- never published
   insure/insure-engine.test.js       53 tests
   shared/pdf.test.js                 35 tests
   dash/dash-engine.test.js           28 tests
-  stock/screener-parse.test.js       24 tests
+  stock/screener-parse.test.js       31 tests
   stock/stock-engine.test.js         30 tests
   stock/yahoo.test.js                20 tests
 worker/                     <- never published, deployed separately
@@ -502,6 +502,21 @@ The parser is regex-based rather than `DOMParser` for the same reason as the
 xlsx and pdf readers: that way the fragile part runs under `node --test`
 against fixture markup, so a change in Screener's HTML shows up as a failing
 test rather than a blank page.
+
+### Wrong codes, and typing a name instead
+
+Screener's codes are not always the NSE ticker you expect — `LICHSG` is a 404,
+`LICHSGFIN` is the company. A bare 404 used to point at the Worker, sending
+people to check a deployment over a mistyped ticker.
+
+Screener publishes its own search as JSON, so the analyser asks it. A 404 now
+comes back as clickable suggestions, and anything containing a space is
+treated as a company name and searched directly rather than tried as a URL.
+The search result carries the canonical path, which also says whether a
+consolidated page exists.
+
+Search failures are swallowed on purpose — a suggestion is a courtesy, and a
+search outage must not become a second error message stacked on the first.
 
 ### Consolidated, and when it does not exist
 

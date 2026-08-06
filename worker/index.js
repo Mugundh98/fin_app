@@ -25,6 +25,10 @@
 const ALLOW = [
   { host: "www.screener.in",           path: /^\/company\/[A-Za-z0-9&._-]+\/(consolidated\/)?$/, ttl: 86400 },
   { host: "screener.in",               path: /^\/company\/[A-Za-z0-9&._-]+\/(consolidated\/)?$/, ttl: 86400 },
+  /* Screener's own company search. Turns "lic housing" — or a wrong ticker —
+     into the code its URLs actually use, which is the difference between a
+     bare 404 and a working suggestion. */
+  { host: "www.screener.in",           path: /^\/api\/company\/search\/$/,                       ttl: 86400 },
   { host: "priceapi.moneycontrol.com", path: /^\/pricefeed\/[a-z]+\/equitycash\/[A-Za-z0-9]+$/,   ttl: 900 },
   /* Yahoo's chart endpoint is open and gives price history, which nothing
      else free does — MoneyControl's equivalent returns 403. Its fundamentals

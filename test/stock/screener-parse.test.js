@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
   decodeEntities, stripTags, cell, toNumber,
   sectionOf, firstTable, parseDataTable, parseRatios,
-  parseCompanyName, parseScreener, hasData
+  parseCompanyName, parseScreener, hasData, parseSearch, SEARCH_URL
 } from "../../public/src/stock/screener-parse.js";
 
 /* ------------------------------------------------------------------
@@ -286,4 +286,60 @@ test("a real page is still usable", () => {
   assert.equal(p.usable, true);
   assert.equal(hasData(p.pnl), true);
   assert.equal(hasData(p.shareholding), true);
+});
+
+/* ------------------------------------------------------------------
+   Company search — turning a wrong ticker into the right one
+   ------------------------------------------------------------------ */
+
+test("reads Screener's search results into codes", () => {
+  const r = parseSearch([
+    { id: 1888, name: "LIC Housing Finance Ltd", url: "/company/LICHSGFIN/consolidated/" },
+    { id: 2726, name: "Reliance Industries Ltd", url: "/company/RELIANCE/consolidated/" }
+  ]);
+  assert.equal(r.length, 2);
+  assert.deepEqual(r[0], { name: "LIC Housing Finance Ltd", code: "LICHSGFIN", consolidated: true });
+  assert.equal(r[1].code, "RELIANCE");
+});
+
+test("the canonical url says whether a consolidated page exists", () => {
+  const r = parseSearch([
+    { name: "Has Subsidiaries Ltd", url: "/company/HASSUB/consolidated/" },
+    { name: "Standalone Only Ltd",  url: "/company/STANDALONE/" }
+  ]);
+  assert.equal(r[0].consolidated, true);
+  assert.equal(r[1].consolidated, false);
+  assert.equal(r[1].code, "STANDALONE");
+});
+
+test("a JSON string is parsed as readily as an array", () => {
+  const r = parseSearch('[{"name":"Tata Motors Ltd","url":"/company/TATAMOTORS/consolidated/"}]');
+  assert.equal(r[0].code, "TATAMOTORS");
+});
+
+test("entries with an unexpected url shape are dropped, not guessed at", () => {
+  const r = parseSearch([
+    { name: "Good", url: "/company/GOOD/" },
+    { name: "Odd",  url: "/screens/12345/something/" },
+    { name: "Also odd", url: "" }
+  ]);
+  assert.equal(r.length, 1);
+  assert.equal(r[0].code, "GOOD");
+});
+
+test("a missing name falls back to the code rather than rendering blank", () => {
+  assert.equal(parseSearch([{ url: "/company/NONAME/" }])[0].name, "NONAME");
+});
+
+test("rubbish search payloads give an empty list, never a throw", () => {
+  for(const v of ["not json", "", null, undefined, {}, 42, [null], [{}]]){
+    assert.deepEqual(parseSearch(v), []);
+  }
+});
+
+test("the search url is built against Screener's own api", () => {
+  assert.match(SEARCH_URL, /^https:\/\/www\.screener\.in\/api\/company\/search\/\?q=$/);
+  /* and the path must match what the Worker allowlist permits */
+  const u = new URL(SEARCH_URL + encodeURIComponent("lic housing"));
+  assert.ok(/^\/api\/company\/search\/$/.test(u.pathname), u.pathname);
 });
