@@ -2,8 +2,27 @@ name = "finapp-proxy"
 main = "index.js"
 compatibility_date = "2026-01-01"
 
-# Pin the proxy to your own site once you know its URL, so nobody else's page
-# can call it. Leave it out and it answers any origin — the host allowlist in
-# index.js is still what stops it being a general-purpose relay.
+# KV cache. Financials are restated once a quarter, so re-reading a company
+# page on every lookup is waste — and volume is the thing most likely to get
+# the proxy blocked. Create the namespace once, then paste its id below:
+#
+#     npx wrangler kv namespace create CACHE
+#
+# The Worker runs fine without this binding; it just goes to the origin every
+# time and reports x-cache: BYPASS.
+[[kv_namespaces]]
+binding = "CACHE"
+id = "fb38a317ba87472899639ceb815201c1"
+
 # [vars]
+# Pin the proxy to your own site so another page cannot call it from a
+# browser. The host allowlist in index.js is still what stops it being a
+# general-purpose relay.
 # ALLOWED_ORIGIN = "https://fin-risk-app.kaushalarmy4.workers.dev"
+#
+# Override the cache lifetime in seconds for every host at once. Left unset,
+# each host uses its own default: 1 day for Screener, 1 hour for Yahoo.
+# CACHE_TTL = "86400"
+#
+# Override the browser string sent upstream.
+# USER_AGENT = "Mozilla/5.0 ..."
