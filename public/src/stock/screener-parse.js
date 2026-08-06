@@ -135,8 +135,20 @@ export function parseScreener(html){
   /* Say plainly which sections came back empty, so the UI can report a
      partial read instead of quietly showing blank panels. */
   parsed.missing = ["pnl","quarters","balanceSheet","cashFlow","shareholding"]
-    .filter(k => parsed[k].rows.length === 0);
-  parsed.usable = parsed.pnl.rows.length > 0 || parsed.balanceSheet.rows.length > 0;
+    .filter(k => !hasData(parsed[k]));
+  parsed.usable = hasData(parsed.pnl) || hasData(parsed.balanceSheet);
 
   return parsed;
+}
+
+/* A table is only usable if it carries NUMBERS, not merely row labels.
+
+   Screener serves /consolidated/ for every company, including the many with
+   no subsidiaries. For those it renders the table skeleton — twelve labelled
+   rows, no period columns, no values — and returns 200. Counting rows alone
+   called that a successful read and produced a convincing, entirely blank
+   page. */
+export function hasData(table){
+  if(!table || !table.periods?.length || !table.rows?.length) return false;
+  return table.rows.some(r => r.values.some(v => v !== null && v !== undefined));
 }

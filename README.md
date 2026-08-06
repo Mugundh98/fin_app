@@ -119,7 +119,7 @@ test/                       <- never published
   insure/insure-engine.test.js       53 tests
   shared/pdf.test.js                 35 tests
   dash/dash-engine.test.js           28 tests
-  stock/screener-parse.test.js       18 tests
+  stock/screener-parse.test.js       24 tests
   stock/stock-engine.test.js         30 tests
   stock/yahoo.test.js                20 tests
 worker/                     <- never published, deployed separately
@@ -445,10 +445,37 @@ Paste the URL it prints into the analyser's proxy box. It is stored in your
 browser only.
 
 **The Worker is not an open proxy.** It serves an allowlist of exact host and
-path patterns — Screener company pages and the MoneyControl price feed — and
-refuses everything else with a 403, so it cannot be found and used as a
-general-purpose relay. Set `ALLOWED_ORIGIN` in `wrangler.toml` to pin it to
-your own site as well.
+path patterns — Screener company pages, the Yahoo chart endpoint and the
+MoneyControl price feed — and refuses everything else with a 403, so it cannot
+be found and used as a general-purpose relay. Set `ALLOWED_ORIGIN` in
+`wrangler.toml` to pin it to your own site as well.
+
+### Caching, and why it matters
+
+Volume is the thing most likely to get a scraper blocked, and a company's
+financials are restated **once a quarter**. Re-reading the page on every
+lookup is pure waste.
+
+Bind a KV namespace and the Worker caches bodies for seven days (Screener) and
+an hour (Yahoo prices, which actually move):
+
+```bash
+npx wrangler kv namespace create CACHE
+```
+
+Paste the id into `wrangler.toml` under `[[kv_namespaces]]`. Without the
+binding the Worker still runs — it just goes to the origin every time and
+reports `x-cache: BYPASS`.
+
+Because a cached page can be days old, the Worker returns `x-cache` and
+`x-cache-age`, and the analyser says so: *"Served from the proxy cache,
+fetched 3 days ago."* The financials will not have changed; the price strip
+will be that stale. Append `&fresh=1` to bypass the cache for one request.
+
+The upstream request also sends an ordinary browser `User-Agent`. Sites vary
+their markup — or refuse outright — for clients they do not recognise, and an
+unfamiliar agent string is the quickest way to start collecting 403s. Override
+with the `USER_AGENT` var.
 
 ### What it does and does not promise
 
@@ -469,6 +496,23 @@ The parser is regex-based rather than `DOMParser` for the same reason as the
 xlsx and pdf readers: that way the fragile part runs under `node --test`
 against fixture markup, so a change in Screener's HTML shows up as a failing
 test rather than a blank page.
+
+### Consolidated, and when it does not exist
+
+Plenty of Indian companies have no subsidiaries, so there is nothing to
+consolidate. Screener still serves `/consolidated/` for them — **200, with the
+table skeleton**: twelve labelled rows, no period columns, no values. A reader
+that counts rows calls that a successful read and renders a clean, entirely
+blank page.
+
+So `hasData()` requires actual numbers, not merely labels, and a consolidated
+page that fails it triggers an automatic retry on standalone. The analyser
+says which basis it ended up using and why.
+
+The fallback is **per lookup**. It reflects the toggle back to what was
+actually shown, but does not change what you asked for — otherwise one
+standalone-only company would silently turn every later lookup standalone, and
+Reliance would quietly report ₹5.5 lakh crore of sales instead of ₹11.2.
 
 ### Banks and NBFCs report different line names
 

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
   decodeEntities, stripTags, cell, toNumber,
   sectionOf, firstTable, parseDataTable, parseRatios,
-  parseCompanyName, parseScreener
+  parseCompanyName, parseScreener, hasData
 } from "../../public/src/stock/screener-parse.js";
 
 /* ------------------------------------------------------------------
@@ -224,3 +224,66 @@ test("markup changes degrade one section, not the whole page", () => {
 });
 
 export { PAGE };
+
+/* ------------------------------------------------------------------
+   The empty-consolidated trap
+
+   Screener serves /consolidated/ for every company, including the many
+   Indian ones with no subsidiaries. For those it returns 200 with the
+   table skeleton — labelled rows, no period columns, no values. Counting
+   rows alone called that a successful read.
+   ------------------------------------------------------------------ */
+
+const SKELETON = `<h1>Castrol India Ltd</h1>
+<section id="profit-loss"><table>
+<thead><tr><th class="text"></th></tr></thead>
+<tbody>
+  <tr><td class="text">Sales&nbsp;<span class="blue-icon">+</span></td></tr>
+  <tr><td class="text">Expenses&nbsp;<span class="blue-icon">+</span></td></tr>
+  <tr><td class="text">Operating Profit</td></tr>
+</tbody></table></section>
+<section id="shareholding"><table>
+<thead><tr><th class="text"></th><th>Mar 2026</th></tr></thead>
+<tbody><tr><td class="text">Promoters</td><td>51.00%</td></tr></tbody>
+</table></section>`;
+
+test("a table of labels with no values is not usable data", () => {
+  const p = parseScreener(SKELETON);
+  assert.equal(p.pnl.rows.length, 3, "the labels are still read");
+  assert.deepEqual(p.pnl.periods, [], "but there are no periods");
+  assert.equal(hasData(p.pnl), false);
+});
+
+test("an empty consolidated page reports itself unusable", () => {
+  const p = parseScreener(SKELETON);
+  assert.equal(p.usable, false, "rows without values must not count as a read");
+  assert.ok(p.missing.includes("pnl"));
+});
+
+test("a section with periods but every value blank is still unusable", () => {
+  const blank = `<section id="profit-loss"><table>
+    <thead><tr><th class="text"></th><th>Mar 2026</th></tr></thead>
+    <tbody><tr><td class="text">Sales</td><td>-</td></tr></tbody></table></section>`;
+  assert.equal(hasData(parseScreener(blank).pnl), false);
+});
+
+test("one real number anywhere makes a section usable", () => {
+  const one = `<section id="profit-loss"><table>
+    <thead><tr><th class="text"></th><th>Mar 2026</th></tr></thead>
+    <tbody><tr><td class="text">Sales</td><td>-</td></tr>
+           <tr><td class="text">Net Profit</td><td>1,234</td></tr></tbody></table></section>`;
+  assert.equal(hasData(parseScreener(one).pnl), true);
+});
+
+test("hasData copes with rubbish rather than throwing", () => {
+  for(const v of [undefined, null, {}, { periods: [] }, { periods: ["A"], rows: [] }]){
+    assert.equal(hasData(v), false);
+  }
+});
+
+test("a real page is still usable", () => {
+  const p = parseScreener(PAGE);
+  assert.equal(p.usable, true);
+  assert.equal(hasData(p.pnl), true);
+  assert.equal(hasData(p.shareholding), true);
+});

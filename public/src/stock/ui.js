@@ -20,7 +20,10 @@ const num = (n, dp = 2) => {
 };
 
 const PROXY_KEY = "finapp.proxyUrl";
-const state = { basis: "consolidated", analysis: null, busy: false };
+/* `preferred` is what the user picked; `basis` is what the last lookup
+   actually used. An automatic fallback to standalone must not silently
+   become the setting for every company looked up afterwards. */
+const state = { preferred: "consolidated", basis: "consolidated", analysis: null, busy: false };
 
 /* ============================================================
    SVG CHARTS  (no library — the app has no dependencies)
@@ -282,6 +285,44 @@ function setNotice(html, kind){
    ============================================================ */
 const proxy = () => (localStorage.getItem(PROXY_KEY) || "").replace(/\/+$/, "");
 
+/* Fetch and parse one basis. Throws on transport failure; an unusable page
+   comes back parsed so the caller can decide whether to try the other basis. */
+async function fetchBasis(code, basis){
+  const target = `https://www.screener.in/company/${encodeURIComponent(code)}/` +
+                 (basis === "consolidated" ? "consolidated/" : "");
+  const res = await fetch(`${proxy()}/?url=${encodeURIComponent(target)}`);
+  const text = await res.text();
+  if(!res.ok){
+    let msg = text;
+    try { msg = JSON.parse(text).error || text; } catch {}
+    throw new Error(String(msg).slice(0, 300));
+  }
+  const parsed = parseScreener(text);
+  /* The proxy caches for days, so say how old the figures are rather than
+     letting a week-old price masquerade as today's. */
+  parsed.cache = { state: res.headers.get("x-cache") || "",
+                   age: Number(res.headers.get("x-cache-age")) || 0 };
+  return parsed;
+}
+
+function describeAge(seconds){
+  if(!seconds || seconds < 90) return "just now";
+  const m = Math.round(seconds / 60);
+  if(m < 90) return `${m} minute${m === 1 ? "" : "s"} ago`;
+  const h = Math.round(m / 60);
+  if(h < 36) return `${h} hour${h === 1 ? "" : "s"} ago`;
+  const d = Math.round(h / 24);
+  return `${d} day${d === 1 ? "" : "s"} ago`;
+}
+
+/* Shows which basis the figures on screen came from. Does not change what
+   the user asked for — only clicking the toggle does that. */
+function setBasis(basis){
+  state.basis = basis;
+  document.querySelectorAll("[data-basis]").forEach(x =>
+    x.setAttribute("aria-pressed", String(x.dataset.basis === basis)));
+}
+
 async function lookup(){
   const code = document.getElementById("ticker").value.trim().toUpperCase();
   if(!code) return setNotice("Enter an NSE code first.", "bad");
@@ -290,25 +331,34 @@ async function lookup(){
     return setNotice("No proxy set. Screener blocks direct reads from other sites, so deploy the Worker in <code>worker/</code> and paste its URL below.", "warn");
   }
 
-  const target = `https://www.screener.in/company/${encodeURIComponent(code)}/` +
-                 (state.basis === "consolidated" ? "consolidated/" : "");
-  const url = `${proxy()}/?url=${encodeURIComponent(target)}`;
-
   state.busy = true;
   document.getElementById("go").disabled = true;
   clearResults();
   setNotice(`Fetching <b>${esc(code)}</b>…`);
 
   try{
-    const res = await fetch(url);
-    const text = await res.text();
-    if(!res.ok){
-      let msg = text;
-      try { msg = JSON.parse(text).error || text; } catch {}
-      throw new Error(msg.slice(0, 300));
+    /* Every lookup starts from what the user chose, not from wherever the
+       last company's fallback happened to leave the toggle. */
+    let basis = state.preferred;
+    setBasis(basis);
+    let parsed = await fetchBasis(code, basis);
+    let fellBack = false;
+
+    /* Plenty of Indian companies have no subsidiaries, so there is nothing to
+       consolidate. Screener still serves /consolidated/ for them — 200, with
+       an empty table skeleton — so an unusable read here means "this company
+       reports standalone only", not "the lookup failed". Retry rather than
+       hand back a blank page. */
+    if(!parsed.usable && basis === "consolidated"){
+      const standalone = await fetchBasis(code, "standalone");
+      if(standalone.usable){
+        parsed = standalone;
+        basis = "standalone";
+        fellBack = true;
+        setBasis("standalone");
+      }
     }
 
-    const parsed = parseScreener(text);
     if(!parsed.usable){
       setNotice(`Fetched <b>${esc(code)}</b>, but no financial tables were found. Screener may have changed its markup, or that code may not exist — try it on screener.in first.`, "bad");
       return;
@@ -319,10 +369,13 @@ async function lookup(){
     render(a);
 
     const missing = parsed.missing.filter(m => m !== "cashFlow");
-    setNotice(missing.length
-      ? `Read <b>${esc(parsed.name || code)}</b>. Could not find: ${missing.join(", ")} — those panels are hidden rather than shown empty.`
-      : `Read <b>${esc(parsed.name || code)}</b>.`,
-      missing.length ? "warn" : "");
+    const bits = [`Read <b>${esc(parsed.name || code)}</b>.`];
+    if(fellBack) bits.push(`No consolidated figures are published — it has no subsidiaries to consolidate — so this is <b>standalone</b>.`);
+    if(missing.length) bits.push(`Could not find: ${missing.join(", ")} — those panels are hidden rather than shown empty.`);
+    if(parsed.cache?.state === "HIT"){
+      bits.push(`Served from the proxy cache, fetched <b>${describeAge(parsed.cache.age)}</b> — financials only change quarterly, but the price strip will be that stale.`);
+    }
+    setNotice(bits.join(" "), fellBack || missing.length ? "warn" : "");
 
     /* Financials come from Screener; the price series comes from Yahoo,
        which is the only free source that gives one. Fetched after, so a
@@ -346,9 +399,8 @@ document.getElementById("ticker").addEventListener("keydown", e => {
 });
 
 document.querySelectorAll("[data-basis]").forEach(b => b.addEventListener("click", () => {
-  state.basis = b.dataset.basis;
-  document.querySelectorAll("[data-basis]").forEach(x =>
-    x.setAttribute("aria-pressed", String(x.dataset.basis === state.basis)));
+  state.preferred = b.dataset.basis;
+  setBasis(state.preferred);
   if(state.analysis) lookup();
 }));
 
