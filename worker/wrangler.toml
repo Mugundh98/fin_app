@@ -1,3 +1,11 @@
+# ============================================================
+#  THE PROXY WORKER — reads public pages for the stock analyser.
+#
+#  This is NOT the website. The site's config, its database and its
+#  sign-in credentials all live in the wrangler.toml at the REPO ROOT.
+#  Nothing to do with accounts belongs in this file.
+# ============================================================
+
 name = "finapp-proxy"
 main = "index.js"
 compatibility_date = "2026-01-01"
@@ -17,6 +25,8 @@ id = "fb38a317ba87472899639ceb815201c1"
 # No D1 here on purpose. This Worker only fetches public pages and caches
 # them; it has no users and no state. The database belongs to the site
 # Worker, configured in the wrangler.toml at the repo root.
+
+# No GOOGLE_CLIENT_ID here either — sign-in belongs to the site Worker.
 
 # [vars]
 # Pin the proxy to your own site so another page cannot call it from a

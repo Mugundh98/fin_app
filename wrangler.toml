@@ -1,5 +1,10 @@
-# The SITE Worker: static pages from public/, plus the /api/ routes in
-# server/index.js. The proxy Worker is separate and lives in worker/.
+# ============================================================
+#  THE SITE WORKER — the website itself.
+#
+#  Static pages from public/, plus the /api/ routes in server/index.js.
+#  The database and the sign-in credentials belong HERE. The separate
+#  proxy Worker in worker/ has nothing to do with accounts.
+# ============================================================
 #
 # Until this file existed the site deployed as pure static assets with
 # Cloudflare supplying the config. Now the repo describes its own deploy,
@@ -17,10 +22,10 @@ directory = "./public"
 binding = "ASSETS"
 
 [vars]
-# Public by design — it appears in the redirect to Google. The SECRET is not
-# here and must never be:
+# Public by design — it appears in the redirect to Google, so it is fine in
+# the repo. The SECRET is not here and must never be:
 #     npx wrangler secret put GOOGLE_CLIENT_SECRET
-GOOGLE_CLIENT_ID = ""
+GOOGLE_CLIENT_ID = "799861474883-oahd5hedk5acgkbuvtbh22podcckhuj1.apps.googleusercontent.com"
 
 # Created with:
 #     npx wrangler d1 create finapp
