@@ -14,6 +14,10 @@ compatibility_date = "2026-01-01"
 binding = "CACHE"
 id = "fb38a317ba87472899639ceb815201c1"
 
+# No D1 here on purpose. This Worker only fetches public pages and caches
+# them; it has no users and no state. The database belongs to the site
+# Worker, configured in the wrangler.toml at the repo root.
+
 # [vars]
 # Pin the proxy to your own site so another page cannot call it from a
 # browser. The host allowlist in index.js is still what stops it being a
