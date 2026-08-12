@@ -4,6 +4,7 @@ import {
 } from './portfolio-engine.js';
 import { readSpreadsheet, parseCsv } from '../shared/xlsx.js';
 import { drawGuilloche } from '../shared/guilloche.js';
+import { loadState, loadList, saveSoon, flush } from '../shared/store.js';
 
 /* ============================================================
    FORMATTING
@@ -37,6 +38,36 @@ const state = {
   tolerancePp: DEFAULT_TOLERANCE_PP,
   notice: null,
   guessed: 0
+};
+
+/* Holdings are user data, not settings: one corrupt row should cost that row
+   and nothing else, so each is validated on the way in. A stored list that is
+   entirely unusable leaves the seeded example in place. */
+const validHolding = h => {
+  if(!h || typeof h !== "object") return null;
+  const value = Number(h.value);
+  if(!Number.isFinite(value) || value <= 0) return null;
+  return {
+    name: String(h.name ?? "").slice(0, 200),
+    value,
+    cls: CLASSES[h.cls] ? h.cls : "other",
+    source: h.source === "guessed" ? "guessed" : "declared"
+  };
+};
+
+/* Settings restore key by key; the list is separate so a bad row cannot take
+   the target mix down with it. */
+Object.assign(state, loadState("portfolioSettings", {
+  targets: state.targets, template: state.template, tolerancePp: state.tolerancePp
+}));
+const savedHoldings = loadList("portfolioHoldings", validHolding);
+if(savedHoldings && savedHoldings.length) state.holdings = savedHoldings;
+
+const persist = () => {
+  saveSoon("portfolioHoldings", () => state.holdings);
+  saveSoon("portfolioSettings", () => ({
+    targets: state.targets, template: state.template, tolerancePp: state.tolerancePp
+  }));
 };
 
 const analyse = () => analysePortfolio(state.holdings, state.targets, { tolerancePp: state.tolerancePp });
@@ -330,6 +361,7 @@ function renderSumNote(){
 
 function recalc(){
   const a = analyse();
+  persist();
   renderSumNote();
   renderVerdict(a);
   renderAllocation(a);
@@ -391,6 +423,8 @@ document.getElementById("tol").addEventListener("input", e => {
   state.tolerancePp = Math.max(0, Number(e.target.value) || 0);
   recalc();
 });
+
+addEventListener("pagehide", flush);
 
 drawGuilloche(document.getElementById("guilloche"));
 

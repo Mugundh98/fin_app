@@ -1,6 +1,7 @@
 import { ASSUMPTIONS, computePolicy, compareTermPlusIndex } from './insure-engine.js';
 import { drawGuilloche } from '../shared/guilloche.js';
 import { groupIndian } from '../shared/format.js';
+import { loadState, saveSoon, flush } from '../shared/store.js';
 
 /* ============================================================
    FORMATTING
@@ -37,6 +38,9 @@ const state = {
 
 const FIELDS = ["sumAssured","annualPremium","policyTerm","premiumTerm",
                 "bonusPerThousand","fabPerThousand","termPremium","indexReturnPct"];
+
+/* Restore the policy last entered on this machine. */
+Object.assign(state, loadState("insure", { ...state }));
 
 /* ============================================================
    RENDER
@@ -226,6 +230,7 @@ function renderComparison(p){
 
 function recalc(){
   const p = computePolicy(state);
+  saveSoon("insure", () => ({ ...state }));
   /* The engine clamps the paying term to the policy term; reflect that back
      into the field so the form never disagrees with the result. */
   const pt = document.getElementById("premiumTerm");
@@ -260,6 +265,13 @@ document.querySelectorAll("[data-gst]").forEach(btn => btn.addEventListener("cli
 /* The unbuilt plan types are visible for scope, but must not act like tabs. */
 document.querySelectorAll('.formtab[aria-disabled="true"]').forEach(b =>
   b.addEventListener("click", e => e.preventDefault()));
+
+/* The GST buttons carry their initial state in the markup, so a restored
+   value has to be reflected back or the toggle would contradict the result. */
+document.querySelectorAll("[data-gst]").forEach(b =>
+  b.setAttribute("aria-pressed", String((b.dataset.gst === "1") === state.addGst)));
+
+addEventListener("pagehide", flush);
 
 drawGuilloche(document.getElementById("guilloche"));
 recalc();

@@ -2,6 +2,7 @@ import { ASSUMPTIONS, computePlan, defaultInflation, sipSchedule } from './inves
 import { drawGuilloche } from '../shared/guilloche.js';
 import { groupIndian, digitsOnly, amountInWords, monthsBetween, describeMonths }
   from '../shared/format.js';
+import { loadState, saveSoon, flush } from '../shared/store.js';
 
 /* ============================================================
    FORMATTING
@@ -51,6 +52,11 @@ const state = {
   mode: "target",          // "target" = solve for SIP | "budget" = test an amount
   monthlyBudget: 20000
 };
+
+/* Restore whatever was last entered on this machine. loadState keeps only
+   keys declared above, and only where the type still matches, so a stored
+   value from an older build cannot reach the engine. */
+Object.assign(state, loadState("invest", { ...state }));
 
 const isDated = () => !!ASSUMPTIONS.goals[state.goal]?.dated;
 const datesInvalid = () => isDated() && monthsBetween(state.startDate, state.endDate) <= 0;
@@ -386,6 +392,8 @@ function renderHorizon(p){
 
 function recalc(){
   const p = plan();
+  /* Debounced, so typing a figure does not write on every keystroke. */
+  saveSoon("invest", () => ({ ...state }));
   renderHorizon(p);
   renderDerived(p);
   renderVerdict(p);
@@ -395,6 +403,10 @@ function recalc(){
   renderSplit(p);
   renderSticky(p);
 }
+
+/* A debounced write with time still on the clock would be lost when the tab
+   closes. Commit it instead. */
+addEventListener("pagehide", flush);
 
 drawGuilloche(document.getElementById("guilloche"));
 

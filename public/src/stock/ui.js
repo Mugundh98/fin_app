@@ -3,6 +3,7 @@ import { analyseStock } from './stock-engine.js';
 import { chartUrl, parseYahooChart } from './yahoo.js';
 import { drawGuilloche } from '../shared/guilloche.js';
 import { groupIndian } from '../shared/format.js';
+import { load, save } from '../shared/store.js';
 
 /* ============================================================
    FORMATTING
@@ -19,7 +20,10 @@ const num = (n, dp = 2) => {
   return Math.abs(n) < 1000 ? n.toFixed(dp) : groupIndian(n);
 };
 
-const PROXY_KEY = "finapp.proxyUrl";
+const PROXY_KEY = "proxyUrl";
+/* Where the URL lived before the shared store existed. Read once so nobody
+   has to paste their Worker URL again. */
+const LEGACY_PROXY_KEY = "finapp.proxyUrl";
 /* `preferred` is what the user picked; `basis` is what the last lookup
    actually used. An automatic fallback to standalone must not silently
    become the setting for every company looked up afterwards. */
@@ -283,7 +287,16 @@ function setNotice(html, kind){
 /* ============================================================
    FETCH
    ============================================================ */
-const proxy = () => (localStorage.getItem(PROXY_KEY) || "").replace(/\/+$/, "");
+const proxy = () => String(load(PROXY_KEY, "") || "").replace(/\/+$/, "");
+
+/* One-time move from the pre-store key. Runs before anything reads it. */
+(function migrateProxyUrl(){
+  if(load(PROXY_KEY, "")) return;
+  try{
+    const old = localStorage.getItem(LEGACY_PROXY_KEY);
+    if(old){ save(PROXY_KEY, old); localStorage.removeItem(LEGACY_PROXY_KEY); }
+  } catch { /* storage unavailable — nothing to migrate */ }
+})();
 
 /* Fetch and parse one basis. Throws on transport failure; an unusable page
    comes back parsed so the caller can decide whether to try the other basis. */
@@ -451,7 +464,7 @@ document.querySelectorAll("[data-basis]").forEach(b => b.addEventListener("click
 
 document.getElementById("saveProxy").addEventListener("click", () => {
   const v = document.getElementById("proxy").value.trim();
-  localStorage.setItem(PROXY_KEY, v);
+  save(PROXY_KEY, v);
   setNotice(v ? `Proxy saved. Enter a code and fetch.` : `Proxy cleared.`);
 });
 
