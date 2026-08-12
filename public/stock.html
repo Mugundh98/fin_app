@@ -152,6 +152,11 @@
   </p>
 </footer>
 
-<script type="module" src="./src/stock/ui.js"></script>
+<script type="module">
+  import { syncBeforeStart, mountAccountBar } from './src/shared/account.js';
+  await syncBeforeStart();
+  mountAccountBar();
+  await import('./src/stock/ui.js');
+</script>
 </body>
 </html>

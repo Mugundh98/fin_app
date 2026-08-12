@@ -21,7 +21,7 @@
       <p class="tagline">Everything you hold on one page — read out of a statement, or typed in by hand.</p>
     </div>
     <div class="ay-stamp">
-      Your file<b>Never uploaded</b>read in this tab
+      Your file<b>Never uploaded</b>only the figures are kept
     </div>
   </div>
 </header>
@@ -29,10 +29,10 @@
 <main class="wrap">
   <div>
     <div class="scope-note">
-      <b>Nothing leaves your browser.</b> The file is opened and read here, on your own machine, by JavaScript
-      in this tab. This site has no server, no account and no analytics — there is nowhere for it to send anything.
-      Your holdings are <b>saved in this browser</b> so they are still here next time; clear them any time from
-      the <a href="./index.html">planner index</a>.
+      <b>The file itself is never uploaded.</b> It is opened and read here, in this tab, on your own machine —
+      only the holdings it produces are kept. Signed out, those stay in this browser. <b>Signed in, they are
+      stored on your account</b> so they follow you to another device. Either way you can clear them from the
+      <a href="./index.html">planner index</a>, and deleting your account removes everything.
     </div>
 
     <section class="panel">
@@ -134,6 +134,11 @@
   </p>
 </footer>
 
-<script type="module" src="./src/dash/ui.js"></script>
+<script type="module">
+  import { syncBeforeStart, mountAccountBar } from './src/shared/account.js';
+  await syncBeforeStart();
+  mountAccountBar();
+  await import('./src/dash/ui.js');
+</script>
 </body>
 </html>

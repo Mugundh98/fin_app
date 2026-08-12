@@ -186,3 +186,21 @@ select.inp{text-align:left;font-family:"IBM Plex Sans",sans-serif}
 @media(prefers-reduced-motion:no-preference){
   .verdict h3{transition:color .18s ease}
 }
+
+/* ---------- account bar ---------- */
+/* Appended to the masthead by account.js, so no page needs markup for it. */
+.account-bar{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  font-size:11.5px;color:#A9B4C4;
+}
+.account-bar .who{white-space:nowrap}
+.account-bar .who b{color:#fff;font-weight:600}
+.account-bar button{
+  appearance:none;cursor:pointer;font-family:inherit;font-size:11.5px;
+  border:1px solid rgba(255,255,255,.35);background:none;color:#C9D3DF;
+  padding:5px 11px;border-radius:var(--r);white-space:nowrap;
+}
+.account-bar button:hover{border-color:rgba(255,255,255,.7);color:#fff}
+.account-bar button.primary{background:#fff;border-color:#fff;color:var(--ink);font-weight:600}
+.account-bar button.primary:hover{background:#E8EDF2}
+.account-bar button:focus-visible{outline:2px solid #fff;outline-offset:2px}

@@ -99,6 +99,13 @@
   </p>
 </footer>
 
-<script type="module" src="./src/tax/ui.js"></script>
+<script type="module">
+  /* Tax stores nothing, but the account bar still belongs here so the
+     signed-in state is consistent across every page. */
+  import { syncBeforeStart, mountAccountBar } from './src/shared/account.js';
+  await syncBeforeStart();
+  mountAccountBar();
+  await import('./src/tax/ui.js');
+</script>
 </body>
 </html>

@@ -151,6 +151,93 @@ fetch. Everything that renders belongs in `ui.js`.
 
 ---
 
+## Accounts
+
+Optional. Signed out, everything works as it always did and stays on the
+machine. Signed in with Google, your planners are stored on your account and
+follow you to any browser.
+
+### Setting it up
+
+**1. D1**
+
+```bash
+npx wrangler d1 create finapp
+```
+
+Paste the id it prints into the `[[d1_databases]]` block in `wrangler.toml`,
+uncomment it, then create the tables:
+
+```bash
+npx wrangler d1 execute finapp --remote --file=db/schema.sql
+```
+
+**2. A Google OAuth client**
+
+In the [Google Cloud console](https://console.cloud.google.com/apis/credentials):
+create a project, then **Create credentials → OAuth client ID → Web
+application**. Add one authorised redirect URI, matching your site exactly:
+
+```
+https://<your-site>/api/auth/callback
+```
+
+**3. The credentials**
+
+The client id is public — it appears in the redirect to Google — so it lives
+in `wrangler.toml` under `[vars]`. The secret must never be committed:
+
+```bash
+npx wrangler secret put GOOGLE_CLIENT_SECRET
+```
+
+Then `npx wrangler deploy`. Without any of this the site still serves every
+page; sign-in reports that it is not configured rather than failing oddly.
+
+### How it works
+
+`server/index.js` handles `/api/*` and everything else falls through to
+`public/`. The API is on the **same origin as the pages on purpose**: a
+session cookie set from a different origin needs `SameSite=None`, which
+Safari and Firefox drop by default, so logins would fail for a large share of
+users with no obvious cause.
+
+Sign-in is the OAuth **authorization-code** flow. The browser never handles a
+token: it comes back to the server from Google directly, in exchange for a
+one-time code, over TLS.
+
+Three decisions in `server/auth.js` that look like shortcuts and are not:
+
+- **Session tokens are stored hashed.** What lands in D1 is SHA-256 of the
+  cookie value, so reading the database gives you nothing you can log in
+  with. Same reasoning as a password hash.
+- **The ID token's signature is not verified, and does not need to be** — it
+  was fetched by this server from Google's token endpoint, not accepted from
+  a browser. What *is* checked is that the claims are ours and current. The
+  `aud` check is the important one: without it, a token Google minted for a
+  different application would sign someone in here.
+- **State keys are an allowlist, not a pattern.** The save endpoint takes a
+  key from the client; without the allowlist an account could be used as free
+  storage. **Tax is absent on purpose** — never persisted, locally or here.
+
+`SameSite=Lax` plus an explicit same-origin check guard the mutating routes,
+and the cookie is `HttpOnly` so an XSS bug cannot read the session.
+
+### Which copy wins
+
+The rule that decides sync bugs, in one place:
+
+- **Signed out** — everything is local, exactly as before.
+- **Signed in** — the server is authoritative on load, so a second device
+  shows the same figures rather than two half-portfolios.
+- **First sign-in on an empty account** — the local data is pushed up, so
+  signing in never looks like it erased your work.
+
+Signing out clears the local copy too. Leaving one person's portfolio behind
+on a shared machine would be indefensible.
+
+---
+
 ## Saved state
 
 `shared/store.js` keeps what you enter in **localStorage**, so a planner is

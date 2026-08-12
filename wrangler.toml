@@ -1,0 +1,34 @@
+# The SITE Worker: static pages from public/, plus the /api/ routes in
+# server/index.js. The proxy Worker is separate and lives in worker/.
+#
+# Until this file existed the site deployed as pure static assets with
+# Cloudflare supplying the config. Now the repo describes its own deploy,
+# which is why `name` must keep matching the existing Worker — a different
+# name would create a second one and leave the live URL on the old build.
+
+name = "fin-risk-app"
+main = "server/index.js"
+compatibility_date = "2026-01-01"
+
+# Assets are served first; the Worker only runs for paths no file matches,
+# which in practice means /api/*.
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+[vars]
+# Public by design — it appears in the redirect to Google. The SECRET is not
+# here and must never be:
+#     npx wrangler secret put GOOGLE_CLIENT_SECRET
+GOOGLE_CLIENT_ID = ""
+
+# Create once, then paste the id printed:
+#     npx wrangler d1 create finapp
+#     npx wrangler d1 execute finapp --remote --file=db/schema.sql
+#
+# Without this binding the site still serves every page; sign-in reports
+# that it is not configured rather than failing obscurely.
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "finapp"
+# database_id = "paste-the-id-wrangler-prints"

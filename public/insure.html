@@ -192,6 +192,11 @@
   </p>
 </footer>
 
-<script type="module" src="./src/insure/ui.js"></script>
+<script type="module">
+  import { syncBeforeStart, mountAccountBar } from './src/shared/account.js';
+  await syncBeforeStart();
+  mountAccountBar();
+  await import('./src/insure/ui.js');
+</script>
 </body>
 </html>
