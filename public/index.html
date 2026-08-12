@@ -88,24 +88,52 @@
 <script type="module">
   import { drawGuilloche } from './src/shared/guilloche.js';
   import { hasAny, clearAll } from './src/shared/store.js';
+  import { syncBeforeStart, mountAccountBar, currentUser, deleteAccount, signInNotice }
+    from './src/shared/account.js';
 
   drawGuilloche(document.getElementById('guilloche'));
 
-  /* People should know their holdings are being kept, and be able to undo
-     it in one click. Only shown when there is actually something saved. */
+  await syncBeforeStart();
+  mountAccountBar();
+
   const note = document.getElementById('savedNote');
+  const flash = signInNotice();
+
   function render(){
-    if(!hasAny()){ note.hidden = true; return; }
+    const user = currentUser();
+    const bits = [];
+
+    if(flash){
+      bits.push(`<span class="${flash.ok ? 'good' : 'bad'}">${flash.message}</span> &nbsp;·&nbsp; `);
+    }
+
+    if(user){
+      /* Signed in: say where the data actually lives, and offer the only
+         two things that matter — sign out, and delete everything. */
+      bits.push(`Your planners are saved to <b>your account</b> and follow you to any browser.
+        &nbsp;·&nbsp; <button type="button" id="forget">Clear saved data</button>
+        &nbsp;·&nbsp; <button type="button" id="nuke">Delete account</button>`);
+    } else if(hasAny()){
+      bits.push(`What you enter is saved <b>in this browser</b> so it is still here next time.
+        Sign in to carry it to another device.
+        &nbsp;·&nbsp; <button type="button" id="forget">Clear saved data</button>`);
+    } else {
+      bits.push(`What you enter is saved <b>in this browser</b>. Sign in to carry it to another device.`);
+    }
+
     note.hidden = false;
-    note.innerHTML = `What you enter is saved <b>in this browser</b> so it is still
-      here next time. It is never sent anywhere. &nbsp;·&nbsp;
-      <button type="button" id="forget">Clear saved data</button>`;
-    document.getElementById('forget').addEventListener('click', () => {
+    note.innerHTML = bits.join('');
+
+    document.getElementById('forget')?.addEventListener('click', () => {
       if(!confirm('Forget everything saved in this browser? This cannot be undone.')) return;
       clearAll();
-      note.hidden = false;
-      note.innerHTML = 'Cleared. Nothing is saved in this browser now.';
+      note.innerHTML = 'Cleared from this browser.';
       setTimeout(render, 4000);
+    });
+
+    document.getElementById('nuke')?.addEventListener('click', () => {
+      if(!confirm('Delete your account and everything saved on it? This cannot be undone.')) return;
+      deleteAccount();
     });
   }
   render();

@@ -1,0 +1,41 @@
+# ============================================================
+#  THE SITE WORKER — the website itself.
+#
+#  Static pages from public/, plus the /api/ routes in server/index.js.
+#  The database and the sign-in credentials belong HERE. The separate
+#  proxy Worker in worker/ has nothing to do with accounts.
+# ============================================================
+#
+# Until this file existed the site deployed as pure static assets with
+# Cloudflare supplying the config. Now the repo describes its own deploy,
+# which is why `name` must keep matching the existing Worker — a different
+# name would create a second one and leave the live URL on the old build.
+
+name = "fin-risk-app"
+main = "server/index.js"
+compatibility_date = "2026-01-01"
+
+# Assets are served first; the Worker only runs for paths no file matches,
+# which in practice means /api/*.
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+[vars]
+# Public by design — it appears in the redirect to Google, so it is fine in
+# the repo. The SECRET is not here and must never be:
+#     npx wrangler secret put GOOGLE_CLIENT_SECRET
+GOOGLE_CLIENT_ID = "799861474883-oahd5hedk5acgkbuvtbh22podcckhuj1.apps.googleusercontent.com"
+
+# Created with:
+#     npx wrangler d1 create finapp
+#     npx wrangler d1 execute finapp --remote --file=db/schema.sql
+#
+# The binding name is what server/index.js reads as env.DB — it is not the
+# database name and does not have to match it. Without this binding the site
+# still serves every page; sign-in reports that it is not configured rather
+# than failing obscurely.
+[[d1_databases]]
+binding = "DB"
+database_name = "finapp"
+database_id = "201ac594-b2b0-4f01-af6e-9638effa4bdd"

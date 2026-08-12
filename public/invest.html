@@ -98,6 +98,13 @@
   </p>
 </footer>
 
-<script type="module" src="./src/invest/ui.js"></script>
+<script type="module">
+  /* The account sync resolves before the planner loads, so nothing reads
+     local state and then has it replaced underneath. */
+  import { syncBeforeStart, mountAccountBar } from './src/shared/account.js';
+  await syncBeforeStart();
+  mountAccountBar();
+  await import('./src/invest/ui.js');
+</script>
 </body>
 </html>

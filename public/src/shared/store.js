@@ -44,12 +44,26 @@ export function load(key, fallback = null){
 
 /* Returns false rather than throwing when the write fails — over quota, or
    storage disabled. A page must not lose its render because a save failed. */
+/* When signed in, account.js registers a handler here so a local write also
+   goes to the server. This is the seam the file header describes: nothing
+   else in the app knows an account exists. */
+let syncHandler = null;
+export function setSyncHandler(fn){ syncHandler = typeof fn === "function" ? fn : null; }
+
 export function save(key, value){
   if(!isAvailable()) return false;
+  let written = false;
   try{
     localStorage.setItem(PREFIX + key, JSON.stringify(value));
-    return true;
-  } catch { return false; }
+    written = true;
+  } catch { /* over quota, or storage disabled */ }
+
+  /* The local write is the source of truth for this tab either way — a
+     failed upload must not lose what the user just typed. */
+  if(syncHandler){
+    try { syncHandler(key, value); } catch { /* never break a render */ }
+  }
+  return written;
 }
 
 export function remove(key){
