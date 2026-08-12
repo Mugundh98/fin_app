@@ -75,6 +75,8 @@
   </div>
 </main>
 
+<p class="saved-note" id="savedNote" hidden></p>
+
 <footer class="foot">
   <h4>About these planners</h4>
   <p>
@@ -85,7 +87,28 @@
 
 <script type="module">
   import { drawGuilloche } from './src/shared/guilloche.js';
+  import { hasAny, clearAll } from './src/shared/store.js';
+
   drawGuilloche(document.getElementById('guilloche'));
+
+  /* People should know their holdings are being kept, and be able to undo
+     it in one click. Only shown when there is actually something saved. */
+  const note = document.getElementById('savedNote');
+  function render(){
+    if(!hasAny()){ note.hidden = true; return; }
+    note.hidden = false;
+    note.innerHTML = `What you enter is saved <b>in this browser</b> so it is still
+      here next time. It is never sent anywhere. &nbsp;·&nbsp;
+      <button type="button" id="forget">Clear saved data</button>`;
+    document.getElementById('forget').addEventListener('click', () => {
+      if(!confirm('Forget everything saved in this browser? This cannot be undone.')) return;
+      clearAll();
+      note.hidden = false;
+      note.innerHTML = 'Cleared. Nothing is saved in this browser now.';
+      setTimeout(render, 4000);
+    });
+  }
+  render();
 </script>
 </body>
 </html>

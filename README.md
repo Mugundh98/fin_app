@@ -151,6 +151,38 @@ fetch. Everything that renders belongs in `ui.js`.
 
 ---
 
+## Saved state
+
+`shared/store.js` keeps what you enter in **localStorage**, so a planner is
+still filled in next time. Nothing is sent anywhere and there is no account —
+the data lives on the machine that typed it. That is why the "nothing leaves
+your browser" line on these pages is still true, and the pages now say plainly
+that they are saving.
+
+Persisted: investment goal, portfolio holdings and target mix, policy details,
+dashboard holdings, and the stock proxy URL. **Tax inputs deliberately are
+not** — they are the most sensitive figures here and change yearly anyway.
+
+Two things it has to survive, because both happen:
+
+- **Storage that is not there.** Safari in private mode *throws* on write, and
+  it can be disabled outright. Every function degrades to "no saved state"
+  rather than throwing during a page's startup.
+- **Stored data that cannot be trusted** — from an older build, or hand-edited
+  in devtools. `loadState` keeps only keys the defaults declare and only where
+  the type still matches; `loadList` validates row by row, so one corrupt
+  holding costs that row rather than the portfolio.
+
+Writes are debounced, and `flush()` on `pagehide` **commits** anything still
+queued rather than cancelling it — otherwise a save with 300ms left on the
+clock would be lost exactly when the tab closes.
+
+The planner index shows a line whenever anything is saved, with a one-click
+**Clear saved data**. If this ever moves to a server, `load` and `save` are
+the seam.
+
+---
+
 ## The investment model
 
 Everything lives in one exported object at the top of

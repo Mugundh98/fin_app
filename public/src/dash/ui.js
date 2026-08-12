@@ -4,6 +4,7 @@ import { readSpreadsheet, parseCsv } from '../shared/xlsx.js';
 import { isPdf, extractPdfRows } from '../shared/pdf.js';
 import { drawGuilloche } from '../shared/guilloche.js';
 import { groupIndian } from '../shared/format.js';
+import { loadList, saveSoon, flush } from '../shared/store.js';
 
 /* ============================================================
    FORMATTING
@@ -30,6 +31,31 @@ const state = {
   ],
   rawText: ""
 };
+
+/* Same rule as the analyser: validate row by row, so one bad entry costs
+   that row rather than the whole book. Cost is optional and must stay
+   undefined when absent — zero would mean "bought for nothing". */
+const validHolding = h => {
+  if(!h || typeof h !== "object") return null;
+  const value = Number(h.value);
+  if(!Number.isFinite(value) || value <= 0) return null;
+  const cost = Number(h.cost);
+  const clean = {
+    name: String(h.name ?? "").slice(0, 200),
+    value,
+    cls: CLASSES[h.cls] ? h.cls : "other",
+    source: h.source === "guessed" ? "guessed" : "declared"
+  };
+  if(Number.isFinite(cost) && cost > 0) clean.cost = cost;
+  return clean;
+};
+
+const saved = loadList("dashHoldings", validHolding);
+if(saved && saved.length) state.holdings = saved;
+
+/* rawText is deliberately not persisted — it can be the whole text of a
+   statement, and it is a debugging aid for the import that produced it. */
+const persist = () => saveSoon("dashHoldings", () => state.holdings);
 
 /* ============================================================
    EDITABLE ROWS  (structural — rebuilt on add/remove/import only)
@@ -252,6 +278,7 @@ function renderSticky(s){
 
 function recalc(){
   const s = summarise(state.holdings);
+  persist();
   renderTiles(s);
   renderClasses(s);
   renderTop(s);
@@ -289,6 +316,8 @@ document.getElementById("clearAll").addEventListener("click", () => {
   state.holdings = []; state.rawText = "";
   setNotice(""); renderRows(); recalc();
 });
+
+addEventListener("pagehide", flush);
 
 drawGuilloche(document.getElementById("guilloche"));
 renderRows();
