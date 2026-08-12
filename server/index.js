@@ -132,7 +132,14 @@ async function handleApi(request, env, url){
           grant_type: "authorization_code"
         })
       });
-      if(!res.ok) return fail("Google refused the sign-in.");
+      if(!res.ok){
+        /* Google's reason goes to the Worker log, never to the browser: it
+           names the client and is a debugging aid, not something a visitor
+           needs. `invalid_client` here means the secret is wrong or missing.
+           Read it with: npx wrangler tail */
+        console.error("token exchange failed", res.status, (await res.text()).slice(0, 300));
+        return fail("Google refused the sign-in.");
+      }
       tokens = await res.json();
     } catch { return fail("Could not reach Google."); }
 
